@@ -11,7 +11,9 @@ import EXIF from 'exif-js'
 interface UploadedFile {
   id: string
   file: File
-  preview: string
+  preview?: string
+  cloudinaryUrl?: string
+  cloudinaryPublicId?: string
   status: 'uploading' | 'success' | 'error'
   progress?: number
   isHeic?: boolean
@@ -87,26 +89,13 @@ export default function PhotoUpload() {
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const newFiles: UploadedFile[] = []
-    
+
     for (const file of acceptedFiles) {
-      let preview = URL.createObjectURL(file)
-      
-      // Handle HEIC files - try conversion, fallback to Cloudinary
-      if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
-        console.log('Processing HEIC file:', file.name, file.type)
-        
-        // For HEIC files, we'll let Cloudinary handle the conversion
-        // Use a nice placeholder that shows it's a HEIC file
-        preview = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDQwMCA0MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxjaXJjbGUgY3g9IjIwMCIgY3k9IjE1MCIgcj0iNDAiIGZpbGw9IiM2MzY2RjEiLz4KPGNpcmNsZSBjeD0iMjAwIiBjeT0iMTUwIiByPSIyMCIgZmlsbD0iI0ZGRiIvPgo8dGV4dCB4PSIyMDAiIHk9IjI1MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzYzNjZGMiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmb250LXdlaWdodD0iNTAwIj5IRUlDPC90ZXh0Pgo8dGV4dCB4PSIyMDAiIHk9IjI3MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzYzNjZGMiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIj5DbG91ZGluYXJ5IHdpbGw8L3RleHQ+Cjx0ZXh0IHg9IjIwMCIgeT0iMjg1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjM2NkYyIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiPmNvbnZlcnQgdGhpczwvdGV4dD4KPC9zdmc+'
-        console.log('HEIC file detected - Cloudinary will handle conversion')
-      }
-      
       const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
-      
+
       newFiles.push({
         id: Math.random().toString(36).substr(2, 9),
         file,
-        preview,
         status: 'uploading',
         progress: 0,
         isHeic
@@ -114,7 +103,7 @@ export default function PhotoUpload() {
     }
 
     setUploadedFiles(prev => [...prev, ...newFiles])
-    
+
     // Simulate upload progress
     newFiles.forEach(fileObj => {
       simulateUpload(fileObj.id, fileObj.file)
@@ -153,6 +142,7 @@ export default function PhotoUpload() {
         const formData = new FormData()
         formData.append('file', file)
         formData.append('photoDate', photoDate) // Pass the date to the API
+        formData.append('uploadedBy', user?.displayName || 'Unknown') // Pass the user info
         
         // Upload to our API endpoint with timeout
         const controller = new AbortController()
@@ -188,23 +178,24 @@ export default function PhotoUpload() {
       if (result.success) {
         clearInterval(progressInterval)
         setIsUploading(false)
-        setUploadedFiles(prev => 
-          prev.map(file => 
-            file.id === fileId 
-              ? { ...file, status: 'success', progress: 100 }
-              : file
+        setUploadedFiles(prev =>
+          prev.map(f =>
+            f.id === fileId
+              ? { ...f, status: 'success', progress: 100, cloudinaryUrl: result.imageUrl, cloudinaryPublicId: result.publicId }
+              : f
           )
         )
         console.log('Upload successful:', result.imageUrl)
-        
+        console.log('Public ID:', result.publicId)
+
         const newPhoto = {
-          id: fileId,
+          id: result.publicId,
           url: result.imageUrl,
           title: file.name,
           uploadedBy: user?.displayName || 'Unknown',
           uploadedAt: photoDate
         }
-        
+
         // Add photo to context
         addPhoto(newPhoto)
       } else {
@@ -233,10 +224,35 @@ export default function PhotoUpload() {
     }
   }
 
-  const removeFile = (fileId: string) => {
+  const removeFile = async (fileId: string) => {
+    const file = uploadedFiles.find(f => f.id === fileId)
+
+    // If the file was successfully uploaded to Cloudinary, delete it
+    if (file?.status === 'success' && file.cloudinaryPublicId) {
+      try {
+        console.log('🗑️ Deleting from Cloudinary:', file.cloudinaryPublicId)
+        const response = await fetch('/api/delete', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ photoId: file.cloudinaryPublicId })
+        })
+
+        const data = await response.json()
+        if (data.success) {
+          console.log('✅ Successfully deleted from Cloudinary')
+        } else {
+          console.error('❌ Failed to delete from Cloudinary:', data.error)
+        }
+      } catch (error) {
+        console.error('Failed to delete from Cloudinary:', error)
+      }
+    }
+
     setUploadedFiles(prev => {
       const file = prev.find(f => f.id === fileId)
-      if (file) {
+      if (file?.preview) {
         URL.revokeObjectURL(file.preview)
       }
       return prev.filter(f => f.id !== fileId)
@@ -296,14 +312,9 @@ export default function PhotoUpload() {
         {isDragActive ? (
           <p className="text-lg text-primary-600">Drop the photos here...</p>
         ) : (
-          <div>
-            <p className="text-lg text-gray-600 mb-2">
-              Drag and drop photos here, or click to browse
-            </p>
-            <p className="text-sm text-gray-500">
-              Supports JPG, PNG, GIF, WebP, and HEIC formats
-            </p>
-          </div>
+          <p className="text-lg text-gray-600">
+            Drag and drop photos here, or click to browse
+          </p>
         )}
       </div>
 
@@ -328,13 +339,22 @@ export default function PhotoUpload() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   className="card p-4 relative"
                 >
-                  <div className="aspect-square rounded-lg overflow-hidden mb-3">
-                    <img
-                      src={file.preview}
-                      alt={file.file.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+                  {file.cloudinaryUrl ? (
+                    <div className="aspect-square rounded-lg overflow-hidden mb-3">
+                      <img
+                        src={file.cloudinaryUrl}
+                        alt={file.file.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="aspect-square rounded-lg overflow-hidden mb-3 bg-gray-100 flex items-center justify-center">
+                      <div className="text-center">
+                        <Upload className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-xs text-gray-500">Uploading...</p>
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-gray-900 truncate">

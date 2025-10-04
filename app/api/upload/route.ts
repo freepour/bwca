@@ -7,6 +7,7 @@ export async function POST(request: NextRequest) {
         const formData = await request.formData()
         const file = formData.get('file') as File
         const photoDate = formData.get('photoDate') as string
+        const uploadedBy = formData.get('uploadedBy') as string
         
         if (!file) {
           console.error('❌ No file provided')
@@ -15,6 +16,7 @@ export async function POST(request: NextRequest) {
 
         console.log('📁 File received:', file.name, 'Size:', file.size, 'Type:', file.type)
         console.log('📅 Photo date received:', photoDate)
+        console.log('👤 Uploaded by:', uploadedBy)
 
         // Check if Cloudinary is configured
         const hasCloudinaryConfig = process.env.CLOUDINARY_URL || 
@@ -57,12 +59,13 @@ export async function POST(request: NextRequest) {
           console.log('📦 Cloudinary module imported successfully')
           
           console.log('📤 Calling uploadImage function...')
-          const imageUrl = await uploadImage(file, photoDate)
-          console.log('✅ Cloudinary upload successful:', imageUrl)
-      
-      return NextResponse.json({ 
-        success: true, 
-        imageUrl,
+          const result = await uploadImage(file, photoDate, uploadedBy)
+          console.log('✅ Cloudinary upload successful:', result.url)
+
+      return NextResponse.json({
+        success: true,
+        imageUrl: result.url,
+        publicId: result.publicId,
         filename: file.name,
         size: file.size
       })

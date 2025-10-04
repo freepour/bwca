@@ -30,13 +30,23 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
     try {
       console.log('📡 Loading photos from Cloudinary...')
       setIsLoading(true)
-      
-      const response = await fetch('/api/photos')
+
+      const response = await fetch('/api/photos', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      })
       const data = await response.json()
-      
+
+      console.log('📦 Client received data:', data)
+      console.log('📦 Photos array:', data.photos)
+      console.log('📦 Photos count:', data.photos?.length)
+
       if (data.success) {
         setPhotos(data.photos)
         console.log('✅ Loaded photos from Cloudinary:', data.count)
+        console.log('✅ Photos in state:', data.photos)
       } else {
         console.error('❌ Failed to load photos:', data.error)
       }

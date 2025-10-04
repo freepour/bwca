@@ -18,7 +18,7 @@ if (process.env.CLOUDINARY_URL) {
 
 export { cloudinary }
 
-export async function uploadImage(file: File, photoDate?: string): Promise<string> {
+export async function uploadImage(file: File, photoDate?: string, uploadedBy?: string): Promise<{ url: string; publicId: string }> {
   return new Promise((resolve, reject) => {
     console.log('🔧 Setting up Cloudinary signed upload...')
     const formData = new FormData()
@@ -67,7 +67,8 @@ export async function uploadImage(file: File, photoDate?: string): Promise<strin
     
     // Build the string to sign with all parameters
     const params: Record<string, string> = {
-      timestamp: timestamp.toString()
+      timestamp: timestamp.toString(),
+      folder: 'bwca'
     }
     
     // Add format parameters for HEIC files to the signature
@@ -77,9 +78,13 @@ export async function uploadImage(file: File, photoDate?: string): Promise<strin
       // Don't include quality and fetch_format in signature - they're not validated
     }
     
-    // Add photo date as context (not included in signature)
-    if (photoDate) {
-      console.log('📅 Adding photo date to Cloudinary:', photoDate)
+    // Add context parameters to signature (Cloudinary validates these)
+    if (photoDate || uploadedBy) {
+      const contextParts = []
+      if (photoDate) contextParts.push(`photo_date=${photoDate}`)
+      if (uploadedBy) contextParts.push(`uploaded_by=${uploadedBy}`)
+      params.context = contextParts.join('|')
+      console.log('📅 Adding context to signature:', params.context)
     }
     
     // Create the string to sign (sorted parameters)
@@ -105,6 +110,7 @@ export async function uploadImage(file: File, photoDate?: string): Promise<strin
     formData.append('api_key', apiKey)
     formData.append('timestamp', timestamp.toString())
     formData.append('signature', signature)
+    formData.append('folder', 'bwca') // Store all photos in bwca folder
     
     // Add format parameters to form data
     if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
@@ -113,9 +119,12 @@ export async function uploadImage(file: File, photoDate?: string): Promise<strin
       formData.append('fetch_format', 'auto')
     }
     
-    // Add photo date as context
-    if (photoDate) {
-      formData.append('context', `photo_date=${photoDate}`)
+    // Add photo date and uploader as context
+    if (photoDate || uploadedBy) {
+      const contextParts = []
+      if (photoDate) contextParts.push(`photo_date=${photoDate}`)
+      if (uploadedBy) contextParts.push(`uploaded_by=${uploadedBy}`)
+      formData.append('context', contextParts.join('|'))
     }
     
     // Debug: Log all form data parameters
@@ -150,9 +159,10 @@ export async function uploadImage(file: File, photoDate?: string): Promise<strin
     })
     .then(data => {
       console.log('📊 Cloudinary upload response:', data)
-      if (data.secure_url) {
+      if (data.secure_url && data.public_id) {
         console.log('✅ Upload successful, URL:', data.secure_url)
-        resolve(data.secure_url)
+        console.log('✅ Public ID:', data.public_id)
+        resolve({ url: data.secure_url, publicId: data.public_id })
       } else {
         console.error('❌ Upload failed, error:', data.error)
         console.error('❌ Full response data:', data)
