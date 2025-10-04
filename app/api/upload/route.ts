@@ -14,13 +14,18 @@ export async function POST(request: NextRequest) {
 
     console.log('📁 File received:', file.name, 'Size:', file.size, 'Type:', file.type)
 
-    // Check if Cloudinary is configured
-    const hasCloudinaryConfig = process.env.CLOUDINARY_URL || 
-                               (process.env.CLOUDINARY_CLOUD_NAME && 
-                                process.env.CLOUDINARY_API_KEY && 
-                                process.env.CLOUDINARY_API_SECRET)
+        // Check if Cloudinary is configured
+        const hasCloudinaryConfig = process.env.CLOUDINARY_URL || 
+                                   (process.env.CLOUDINARY_CLOUD_NAME && 
+                                    process.env.CLOUDINARY_API_KEY && 
+                                    process.env.CLOUDINARY_API_SECRET)
 
-    console.log('☁️ Cloudinary configured:', !!hasCloudinaryConfig)
+        console.log('☁️ Cloudinary configured:', !!hasCloudinaryConfig)
+        console.log('🔧 Environment variables:')
+        console.log('  - CLOUDINARY_URL:', process.env.CLOUDINARY_URL ? 'SET' : 'NOT SET')
+        console.log('  - CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME ? 'SET' : 'NOT SET')
+        console.log('  - CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? 'SET' : 'NOT SET')
+        console.log('  - CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? 'SET' : 'NOT SET')
 
     if (!hasCloudinaryConfig) {
       // Fallback: simulate upload for demo purposes
@@ -44,18 +49,25 @@ export async function POST(request: NextRequest) {
 
     // Real Cloudinary upload (when configured)
     console.log('☁️ Starting Cloudinary upload...')
-    const { uploadImage } = await import('@/lib/cloudinary')
     
-    console.log('📤 Calling uploadImage function...')
-    const imageUrl = await uploadImage(file)
-    console.log('✅ Cloudinary upload successful:', imageUrl)
-    
-    return NextResponse.json({ 
-      success: true, 
-      imageUrl,
-      filename: file.name,
-      size: file.size
-    })
+    try {
+      const { uploadImage } = await import('@/lib/cloudinary')
+      console.log('📦 Cloudinary module imported successfully')
+      
+      console.log('📤 Calling uploadImage function...')
+      const imageUrl = await uploadImage(file)
+      console.log('✅ Cloudinary upload successful:', imageUrl)
+      
+      return NextResponse.json({ 
+        success: true, 
+        imageUrl,
+        filename: file.name,
+        size: file.size
+      })
+    } catch (cloudinaryError) {
+      console.error('❌ Cloudinary upload failed:', cloudinaryError)
+      throw cloudinaryError
+    }
   } catch (error) {
     console.error('❌ Upload error:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'

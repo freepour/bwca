@@ -55,6 +55,16 @@ export async function uploadImage(file: File): Promise<string> {
     })
     .then(response => {
       console.log('📡 Cloudinary response status:', response.status)
+      console.log('📡 Cloudinary response headers:', Object.fromEntries(response.headers.entries()))
+      
+      if (!response.ok) {
+        console.error('❌ Cloudinary HTTP error:', response.status, response.statusText)
+        return response.text().then(text => {
+          console.error('❌ Cloudinary error response body:', text)
+          throw new Error(`Cloudinary HTTP ${response.status}: ${response.statusText} - ${text}`)
+        })
+      }
+      
       return response.json()
     })
     .then(data => {
@@ -64,11 +74,17 @@ export async function uploadImage(file: File): Promise<string> {
         resolve(data.secure_url)
       } else {
         console.error('❌ Upload failed, error:', data.error)
-        reject(new Error('Upload failed: ' + (data.error?.message || 'Unknown error')))
+        console.error('❌ Full response data:', data)
+        reject(new Error('Upload failed: ' + (data.error?.message || JSON.stringify(data.error) || 'Unknown error')))
       }
     })
     .catch(error => {
       console.error('❌ Cloudinary upload error:', error)
+      console.error('❌ Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
       reject(error)
     })
   })
