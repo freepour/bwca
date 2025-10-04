@@ -26,9 +26,6 @@ export async function uploadImage(file: File): Promise<string> {
     
     // Add format conversion for HEIC files (now allowed with signed uploads)
     if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
-      formData.append('format', 'jpg') // Convert HEIC to JPG
-      formData.append('quality', 'auto') // Auto-optimize quality
-      formData.append('fetch_format', 'auto') // Auto-detect best format
       console.log('📱 Uploading HEIC file with explicit format conversion to JPG')
     }
     
@@ -92,13 +89,21 @@ export async function uploadImage(file: File): Promise<string> {
       .update(stringToSign)
       .digest('hex')
     
+    console.log('🔏 Parameters:', params)
     console.log('🔏 String to sign:', stringToSign.replace(apiSecret, '[SECRET]'))
     console.log('🔏 Generated signature:', signature)
     
-    // Add signature parameters
+    // Add all parameters to form data
     formData.append('api_key', apiKey)
     formData.append('timestamp', timestamp.toString())
     formData.append('signature', signature)
+    
+    // Add format parameters to form data
+    if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+      formData.append('format', 'jpg')
+      formData.append('quality', 'auto')
+      formData.append('fetch_format', 'auto')
+    }
     
     const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`
     console.log('🌐 Upload URL:', uploadUrl)
