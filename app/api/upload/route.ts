@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Increase body size limit for large photo uploads (up to 10MB)
+// Increase timeout for large photo uploads
 export const runtime = 'nodejs'
-export const maxDuration = 60 // 60 seconds timeout
+export const maxDuration = 120 // 120 seconds timeout (2 minutes)
 
 export async function POST(request: NextRequest) {
   try {

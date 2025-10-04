@@ -17,6 +17,7 @@ interface UploadedFile {
   status: 'uploading' | 'success' | 'error'
   progress?: number
   isHeic?: boolean
+  errorMessage?: string
 }
 
 export default function PhotoUpload() {
@@ -146,7 +147,7 @@ export default function PhotoUpload() {
 
       // Upload to our API endpoint with timeout
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 60000) // Increased to 60s
+      const timeoutId = setTimeout(() => controller.abort(), 120000) // Increased to 120s (2 minutes)
 
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -164,6 +165,7 @@ export default function PhotoUpload() {
         } catch (e) {
           // Could not parse error response
         }
+        console.error(`Upload failed for ${file.name}:`, errorMessage)
         throw new Error(errorMessage)
       }
 
@@ -193,14 +195,16 @@ export default function PhotoUpload() {
       }
     } catch (error) {
       clearInterval(progressInterval)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error(`Upload error for ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB):`, errorMessage)
+
       setUploadedFiles(prev =>
-        prev.map(file =>
-          file.id === fileId
-            ? { ...file, status: 'error' }
-            : file
+        prev.map(f =>
+          f.id === fileId
+            ? { ...f, status: 'error', errorMessage }
+            : f
         )
       )
-      console.error('Upload error:', error)
     } finally {
       // Remove from currently uploading set
       setCurrentlyUploading(prev => {
@@ -420,6 +424,13 @@ export default function PhotoUpload() {
                           </>
                         )}
                       </div>
+
+                      {/* Error message */}
+                      {file.status === 'error' && file.errorMessage && (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                          <strong>Error:</strong> {file.errorMessage}
+                        </div>
+                      )}
 
                       <div className="flex items-center gap-2">
                         {file.status === 'error' && (

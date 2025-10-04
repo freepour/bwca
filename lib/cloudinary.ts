@@ -116,7 +116,15 @@ export async function uploadImage(file: File, photoDate?: string, uploadedBy?: s
     .then(response => {
       if (!response.ok) {
         return response.text().then(text => {
-          throw new Error(`Cloudinary HTTP ${response.status}: ${response.statusText}`)
+          console.error(`Cloudinary upload failed: ${response.status} ${response.statusText}`, text)
+          let errorDetail = text
+          try {
+            const parsed = JSON.parse(text)
+            errorDetail = parsed.error?.message || text
+          } catch (e) {
+            // text is not JSON
+          }
+          throw new Error(`Cloudinary error: ${errorDetail}`)
         })
       }
 
@@ -124,9 +132,12 @@ export async function uploadImage(file: File, photoDate?: string, uploadedBy?: s
     })
     .then(data => {
       if (data.secure_url && data.public_id) {
+        console.log(`Successfully uploaded to Cloudinary: ${data.public_id}`)
         resolve({ url: data.secure_url, publicId: data.public_id })
       } else {
-        reject(new Error('Upload failed: ' + (data.error?.message || JSON.stringify(data.error) || 'Unknown error')))
+        const errorMsg = data.error?.message || JSON.stringify(data.error) || 'Unknown error'
+        console.error('Cloudinary upload failed:', errorMsg)
+        reject(new Error('Upload failed: ' + errorMsg))
       }
     })
     .catch(error => {
