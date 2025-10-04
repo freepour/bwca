@@ -1,5 +1,6 @@
 // Cloudinary configuration for image hosting
 import { v2 as cloudinary } from 'cloudinary'
+import crypto from 'crypto'
 
 // Configure Cloudinary using the URL format
 if (process.env.CLOUDINARY_URL) {
@@ -19,29 +20,64 @@ export { cloudinary }
 
 export async function uploadImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    console.log('🔧 Setting up Cloudinary upload...')
+    console.log('🔧 Setting up Cloudinary signed upload...')
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('upload_preset', 'bwca_photos')
     
-        // Note: For unsigned uploads, we can't specify format parameters
-        // Cloudinary will automatically handle HEIC conversion based on the upload preset
-        if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
-          console.log('📱 Uploading HEIC file, Cloudinary will handle conversion automatically')
-        }
+    // Add format conversion for HEIC files (now allowed with signed uploads)
+    if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+      formData.append('format', 'jpg') // Convert HEIC to JPG
+      formData.append('quality', 'auto') // Auto-optimize quality
+      formData.append('fetch_format', 'auto') // Auto-detect best format
+      console.log('📱 Uploading HEIC file with explicit format conversion to JPG')
+    }
     
-    // Extract cloud name from CLOUDINARY_URL or use env var
-    const cloudName = process.env.CLOUDINARY_URL 
-      ? process.env.CLOUDINARY_URL.split('@')[1] 
-      : process.env.CLOUDINARY_CLOUD_NAME
+    // Extract credentials from CLOUDINARY_URL or use env vars
+    let cloudName: string
+    let apiKey: string
+    let apiSecret: string
+    
+    if (process.env.CLOUDINARY_URL) {
+      const url = process.env.CLOUDINARY_URL
+      const match = url.match(/cloudinary:\/\/(\d+):([^@]+)@(.+)/)
+      if (match) {
+        apiKey = match[1]
+        apiSecret = match[2]
+        cloudName = match[3]
+      } else {
+        console.error('❌ Invalid CLOUDINARY_URL format')
+        reject(new Error('Invalid CLOUDINARY_URL format'))
+        return
+      }
+    } else {
+      cloudName = process.env.CLOUDINARY_CLOUD_NAME || ''
+      apiKey = process.env.CLOUDINARY_API_KEY || ''
+      apiSecret = process.env.CLOUDINARY_API_SECRET || ''
+    }
     
     console.log('☁️ Cloud name:', cloudName)
+    console.log('🔑 API key:', apiKey ? 'SET' : 'NOT SET')
+    console.log('🔐 API secret:', apiSecret ? 'SET' : 'NOT SET')
     
-    if (!cloudName) {
-      console.error('❌ Cloudinary cloud name not found')
-      reject(new Error('Cloudinary cloud name not found'))
+    if (!cloudName || !apiKey || !apiSecret) {
+      console.error('❌ Missing Cloudinary credentials')
+      reject(new Error('Missing Cloudinary credentials'))
       return
     }
+    
+    // Generate signature for signed upload
+    const timestamp = Math.round(new Date().getTime() / 1000)
+    const signature = crypto
+      .createHash('sha1')
+      .update(`timestamp=${timestamp}${apiSecret}`)
+      .digest('hex')
+    
+    console.log('🔏 Generated signature for timestamp:', timestamp)
+    
+    // Add signature parameters
+    formData.append('api_key', apiKey)
+    formData.append('timestamp', timestamp.toString())
+    formData.append('signature', signature)
     
     const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`
     console.log('🌐 Upload URL:', uploadUrl)
