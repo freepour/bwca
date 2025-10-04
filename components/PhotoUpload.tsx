@@ -45,9 +45,9 @@ export default function PhotoUpload() {
           console.log('Preview URL created:', preview)
         } catch (error) {
           console.error('HEIC conversion failed:', error)
-          // Try using the original file URL as fallback
-          console.log('Trying original file URL as fallback')
-          preview = URL.createObjectURL(file)
+          // For HEIC files, we'll let Cloudinary handle the conversion
+          // Use a placeholder for now, Cloudinary will convert it properly
+          preview = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDQwMCA0MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yMDAgMTUwQzIyNS4xNDMgMTUwIDI0NSAxNjkuODU3IDI0NSAxOTVDMjQ1IDIyMC4xNDMgMjI1LjE0MyAyNDAgMjAwIDI0MEMxNzQuODU3IDI0MCAxNTUgMjIwLjE0MyAxNTUgMTk1QzE1NSAxNjkuODU3IDE3NC44NTcgMTUwIDIwMCAxNTBaIiBmaWxsPSIjOUI5QkE1Ii8+CjxwYXRoIGQ9Ik0yMDAgMTcwQzIxMC40OTMgMTcwIDIyMCAxNzkuNTA3IDIyMCAxOTBDMjIwIDIwMC40OTMgMjEwLjQ5MyAyMTAgMjAwIDIxMEMxODkuNTA3IDIxMCAxODAgMjAwLjQ5MyAxODAgMTkwQzE4MCAxNzkuNTA3IDE4OS41MDcgMTcwIDIwMCAxNzBaIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjIwMCIgeT0iMjgwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNkI3MjgwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiPkhFSUM8L3RleHQ+Cjwvc3ZnPgo='
         }
       }
       
