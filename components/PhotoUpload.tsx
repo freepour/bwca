@@ -388,9 +388,13 @@ export default function PhotoUpload() {
                   {file.cloudinaryUrl ? (
                     <div className="aspect-square rounded-lg overflow-hidden mb-3">
                       <img
-                        src={file.cloudinaryUrl}
+                        src={file.cloudinaryUrl.replace('/upload/', '/upload/c_fill,w_400,h_400,f_auto,q_auto/')}
                         alt={file.file.name}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback if transformation fails
+                          e.currentTarget.src = file.cloudinaryUrl!
+                        }}
                       />
                     </div>
                   ) : (
