@@ -3,8 +3,12 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "functions": {
-    "app/api/upload/route.ts": {
-      "maxDuration": 120
+    "api/upload/**": {
+      "maxDuration": 120,
+      "memory": 1024
     }
+  },
+  "limits": {
+    "maxRequestBodySize": "10mb"
   }
 }
