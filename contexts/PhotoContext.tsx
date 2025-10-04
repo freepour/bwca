@@ -33,13 +33,24 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
       const response = await fetch('/api/photos', {
         cache: 'no-store',
         headers: {
-          'Cache-Control': 'no-cache'
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         }
       })
       const data = await response.json()
 
       if (data.success) {
-        setPhotos(data.photos)
+        // Merge with existing photos to prevent losing optimistically added ones
+        setPhotos(prevPhotos => {
+          const newPhotos = data.photos
+          const existingIds = new Set(newPhotos.map((p: Photo) => p.id))
+
+          // Keep any photos from local state that aren't in the API response yet
+          const recentLocalPhotos = prevPhotos.filter(p => !existingIds.has(p.id))
+
+          // Combine: API photos (source of truth) + recent local photos
+          return [...newPhotos, ...recentLocalPhotos]
+        })
       } else {
         console.error('Failed to load photos:', data.error)
       }
@@ -85,10 +96,14 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
     // Add photo optimistically
     setPhotos(prev => [photo, ...prev])
 
-    // Refresh from Cloudinary after a short delay to get the actual state
-    setTimeout(() => {
-      loadPhotos()
-    }, 1000)
+    // Retry fetching from Cloudinary with exponential backoff
+    // Cloudinary API can be slow to reflect new uploads
+    const retryDelays = [1000, 3000, 5000, 10000] // 1s, 3s, 5s, 10s
+    retryDelays.forEach(delay => {
+      setTimeout(() => {
+        loadPhotos()
+      }, delay)
+    })
   }
 
   const updatePhoto = (id: string, updates: Partial<Photo>) => {
