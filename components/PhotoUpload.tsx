@@ -400,17 +400,18 @@ export default function PhotoUpload() {
                               e.stopPropagation()
                               retryUpload(file.id)
                             }}
-                            className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
+                            className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors flex items-center gap-1.5"
                             title="Retry upload"
                           >
                             <RefreshCw className="h-4 w-4" />
+                            Retry
                           </button>
                         )}
                         <button
                           onClick={() => removeFile(file.id)}
-                          className="text-gray-400 hover:text-red-500 transition-colors"
+                          className="p-2 text-gray-400 hover:text-red-500 transition-colors"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-5 w-5" />
                         </button>
                       </div>
                     </div>
