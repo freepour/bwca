@@ -78,15 +78,31 @@ export default function PhotoUpload() {
       // Create FormData for upload
       const formData = new FormData()
       const fileObj = uploadedFiles.find(f => f.id === fileId)
-      if (!fileObj) return
+      if (!fileObj) {
+        console.error('File object not found for ID:', fileId)
+        return
+      }
       
+      console.log('Starting upload for file:', fileObj.file.name, 'Size:', fileObj.file.size)
       formData.append('file', fileObj.file)
       
-      // Upload to our API endpoint
+      // Upload to our API endpoint with timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+      
+      console.log('Sending request to /api/upload...')
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
+        signal: controller.signal
       })
+      
+      clearTimeout(timeoutId)
+      console.log('Response received, status:', response.status)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
       
       const result = await response.json()
       console.log('Upload response:', result)
@@ -117,6 +133,14 @@ export default function PhotoUpload() {
         )
       )
       console.error('Upload error:', error)
+      
+      // Show user-friendly error message
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('Upload timed out after 30 seconds')
+      } else {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        console.error('Upload failed:', errorMessage)
+      }
     }
   }
 

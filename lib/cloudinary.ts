@@ -19,6 +19,7 @@ export { cloudinary }
 
 export async function uploadImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
+    console.log('🔧 Setting up Cloudinary upload...')
     const formData = new FormData()
     formData.append('file', file)
     formData.append('upload_preset', 'bwca_photos')
@@ -28,7 +29,7 @@ export async function uploadImage(file: File): Promise<string> {
       formData.append('format', 'jpg') // Convert HEIC to JPG
       formData.append('quality', 'auto') // Auto-optimize quality
       formData.append('fetch_format', 'auto') // Auto-detect best format
-      console.log('Uploading HEIC file, Cloudinary will convert to JPG with auto-optimization')
+      console.log('📱 Uploading HEIC file, Cloudinary will convert to JPG with auto-optimization')
     }
     
     // Extract cloud name from CLOUDINARY_URL or use env var
@@ -36,26 +37,38 @@ export async function uploadImage(file: File): Promise<string> {
       ? process.env.CLOUDINARY_URL.split('@')[1] 
       : process.env.CLOUDINARY_CLOUD_NAME
     
+    console.log('☁️ Cloud name:', cloudName)
+    
     if (!cloudName) {
+      console.error('❌ Cloudinary cloud name not found')
       reject(new Error('Cloudinary cloud name not found'))
       return
     }
     
-    fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`
+    console.log('🌐 Upload URL:', uploadUrl)
+    console.log('📤 Starting Cloudinary request...')
+    
+    fetch(uploadUrl, {
       method: 'POST',
       body: formData,
     })
-    .then(response => response.json())
+    .then(response => {
+      console.log('📡 Cloudinary response status:', response.status)
+      return response.json()
+    })
     .then(data => {
-      console.log('Cloudinary upload response:', data)
+      console.log('📊 Cloudinary upload response:', data)
       if (data.secure_url) {
+        console.log('✅ Upload successful, URL:', data.secure_url)
         resolve(data.secure_url)
       } else {
+        console.error('❌ Upload failed, error:', data.error)
         reject(new Error('Upload failed: ' + (data.error?.message || 'Unknown error')))
       }
     })
     .catch(error => {
-      console.error('Cloudinary upload error:', error)
+      console.error('❌ Cloudinary upload error:', error)
       reject(error)
     })
   })
