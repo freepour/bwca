@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, X, CheckCircle, AlertCircle, LogIn } from 'lucide-react'
+import { Upload, X, CheckCircle, AlertCircle, LogIn, RefreshCw } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePhotos } from '@/contexts/PhotoContext'
@@ -183,6 +183,23 @@ export default function PhotoUpload() {
     }
   }
 
+  const retryUpload = async (fileId: string) => {
+    const file = uploadedFiles.find(f => f.id === fileId)
+    if (!file) return
+
+    // Reset status to uploading
+    setUploadedFiles(prev =>
+      prev.map(f =>
+        f.id === fileId
+          ? { ...f, status: 'uploading' as const, progress: 0 }
+          : f
+      )
+    )
+
+    // Retry the upload
+    await simulateUpload(fileId, file.file)
+  }
+
   const removeFile = async (fileId: string) => {
     const file = uploadedFiles.find(f => f.id === fileId)
 
@@ -286,9 +303,24 @@ export default function PhotoUpload() {
             exit={{ opacity: 0, y: -20 }}
             className="space-y-4"
           >
-            <h3 className="text-lg font-semibold text-gray-900">
-              Uploaded Photos ({uploadedFiles.length})
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Uploaded Photos ({uploadedFiles.length})
+              </h3>
+              {uploadedFiles.some(f => f.status === 'error') && (
+                <button
+                  onClick={() => {
+                    uploadedFiles
+                      .filter(f => f.status === 'error')
+                      .forEach(f => retryUpload(f.id))
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Retry All Failed
+                </button>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {uploadedFiles.map((file) => (
                 <motion.div
@@ -356,17 +388,31 @@ export default function PhotoUpload() {
                         {file.status === 'error' && (
                           <>
                             <AlertCircle className="h-4 w-4 text-red-500" />
-                            <span className="text-xs text-red-600">Error</span>
+                            <span className="text-xs text-red-600 font-medium">Failed</span>
                           </>
                         )}
                       </div>
-                      
-                      <button
-                        onClick={() => removeFile(file.id)}
-                        className="text-gray-400 hover:text-red-500 transition-colors"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
+
+                      <div className="flex items-center gap-2">
+                        {file.status === 'error' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              retryUpload(file.id)
+                            }}
+                            className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
+                            title="Retry upload"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => removeFile(file.id)}
+                          className="text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
