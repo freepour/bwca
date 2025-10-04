@@ -20,20 +20,14 @@ export { cloudinary }
 
 export async function uploadImage(file: File, photoDate?: string, uploadedBy?: string): Promise<{ url: string; publicId: string }> {
   return new Promise((resolve, reject) => {
-    console.log('🔧 Setting up Cloudinary signed upload...')
     const formData = new FormData()
     formData.append('file', file)
-    
-    // Add format conversion for HEIC files (now allowed with signed uploads)
-    if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
-      console.log('📱 Uploading HEIC file with explicit format conversion to JPG')
-    }
-    
+
     // Extract credentials from CLOUDINARY_URL or use env vars
     let cloudName: string
     let apiKey: string
     let apiSecret: string
-    
+
     if (process.env.CLOUDINARY_URL) {
       const url = process.env.CLOUDINARY_URL
       const match = url.match(/cloudinary:\/\/(\d+):([^@]+)@(.+)/)
@@ -42,7 +36,6 @@ export async function uploadImage(file: File, photoDate?: string, uploadedBy?: s
         apiSecret = match[2]
         cloudName = match[3]
       } else {
-        console.error('❌ Invalid CLOUDINARY_URL format')
         reject(new Error('Invalid CLOUDINARY_URL format'))
         return
       }
@@ -51,13 +44,8 @@ export async function uploadImage(file: File, photoDate?: string, uploadedBy?: s
       apiKey = process.env.CLOUDINARY_API_KEY || ''
       apiSecret = process.env.CLOUDINARY_API_SECRET || ''
     }
-    
-    console.log('☁️ Cloud name:', cloudName)
-    console.log('🔑 API key:', apiKey ? 'SET' : 'NOT SET')
-    console.log('🔐 API secret:', apiSecret ? 'SET' : 'NOT SET')
-    
+
     if (!cloudName || !apiKey || !apiSecret) {
-      console.error('❌ Missing Cloudinary credentials')
       reject(new Error('Missing Cloudinary credentials'))
       return
     }
@@ -84,41 +72,33 @@ export async function uploadImage(file: File, photoDate?: string, uploadedBy?: s
       if (photoDate) contextParts.push(`photo_date=${photoDate}`)
       if (uploadedBy) contextParts.push(`uploaded_by=${uploadedBy}`)
       params.context = contextParts.join('|')
-      console.log('📅 Adding context to signature:', params.context)
     }
-    
+
     // Create the string to sign (sorted parameters)
     const sortedParams = Object.keys(params)
       .sort()
       .map(key => `${key}=${params[key]}`)
       .join('&')
-    
+
     const stringToSign = sortedParams + apiSecret
     const signature = crypto
       .createHash('sha1')
       .update(stringToSign)
       .digest('hex')
-    
-    console.log('🔏 Parameters:', params)
-    console.log('🔏 Sorted params:', sortedParams)
-    console.log('🔏 String to sign:', stringToSign.replace(apiSecret, '[SECRET]'))
-    console.log('🔏 Generated signature:', signature)
-    console.log('🔏 API Secret length:', apiSecret.length)
-    console.log('🔏 API Secret starts with:', apiSecret.substring(0, 4) + '...')
-    
+
     // Add all parameters to form data
     formData.append('api_key', apiKey)
     formData.append('timestamp', timestamp.toString())
     formData.append('signature', signature)
-    formData.append('folder', 'bwca') // Store all photos in bwca folder
-    
+    formData.append('folder', 'bwca')
+
     // Add format parameters to form data
     if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
       formData.append('format', 'jpg')
       formData.append('quality', 'auto')
       formData.append('fetch_format', 'auto')
     }
-    
+
     // Add photo date and uploader as context
     if (photoDate || uploadedBy) {
       const contextParts = []
@@ -126,56 +106,31 @@ export async function uploadImage(file: File, photoDate?: string, uploadedBy?: s
       if (uploadedBy) contextParts.push(`uploaded_by=${uploadedBy}`)
       formData.append('context', contextParts.join('|'))
     }
-    
-    // Debug: Log all form data parameters
-    console.log('📤 Form data parameters:')
-    Array.from(formData.entries()).forEach(([key, value]) => {
-      if (key !== 'file') {
-        console.log(`  ${key}: ${value}`)
-      }
-    })
-    
+
     const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`
-    console.log('🌐 Upload URL:', uploadUrl)
-    console.log('📤 Starting Cloudinary request...')
     
     fetch(uploadUrl, {
       method: 'POST',
       body: formData,
     })
     .then(response => {
-      console.log('📡 Cloudinary response status:', response.status)
-      console.log('📡 Cloudinary response headers:', Object.fromEntries(response.headers.entries()))
-      
       if (!response.ok) {
-        console.error('❌ Cloudinary HTTP error:', response.status, response.statusText)
         return response.text().then(text => {
-          console.error('❌ Cloudinary error response body:', text)
-          throw new Error(`Cloudinary HTTP ${response.status}: ${response.statusText} - ${text}`)
+          throw new Error(`Cloudinary HTTP ${response.status}: ${response.statusText}`)
         })
       }
-      
+
       return response.json()
     })
     .then(data => {
-      console.log('📊 Cloudinary upload response:', data)
       if (data.secure_url && data.public_id) {
-        console.log('✅ Upload successful, URL:', data.secure_url)
-        console.log('✅ Public ID:', data.public_id)
         resolve({ url: data.secure_url, publicId: data.public_id })
       } else {
-        console.error('❌ Upload failed, error:', data.error)
-        console.error('❌ Full response data:', data)
         reject(new Error('Upload failed: ' + (data.error?.message || JSON.stringify(data.error) || 'Unknown error')))
       }
     })
     .catch(error => {
-      console.error('❌ Cloudinary upload error:', error)
-      console.error('❌ Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      })
+      console.error('Cloudinary upload error:', error)
       reject(error)
     })
   })

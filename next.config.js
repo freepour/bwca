@@ -4,6 +4,11 @@ const nextConfig = {
     domains: ['res.cloudinary.com'],
     formats: ['image/webp', 'image/avif'],
   },
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
 }
 
 module.exports = nextConfig

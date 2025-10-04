@@ -28,7 +28,6 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
   // Load photos from Cloudinary
   const loadPhotos = async () => {
     try {
-      console.log('📡 Loading photos from Cloudinary...')
       setIsLoading(true)
 
       const response = await fetch('/api/photos', {
@@ -39,19 +38,13 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
       })
       const data = await response.json()
 
-      console.log('📦 Client received data:', data)
-      console.log('📦 Photos array:', data.photos)
-      console.log('📦 Photos count:', data.photos?.length)
-
       if (data.success) {
         setPhotos(data.photos)
-        console.log('✅ Loaded photos from Cloudinary:', data.count)
-        console.log('✅ Photos in state:', data.photos)
       } else {
-        console.error('❌ Failed to load photos:', data.error)
+        console.error('Failed to load photos:', data.error)
       }
     } catch (error) {
-      console.error('❌ Error loading photos:', error)
+      console.error('Error loading photos:', error)
     } finally {
       setIsLoading(false)
     }
@@ -69,7 +62,6 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
 
   const addPhoto = (photo: Photo) => {
     setPhotos(prev => [photo, ...prev])
-    console.log('Photo added to context:', photo)
   }
 
   const updatePhoto = (id: string, updates: Partial<Photo>) => {
@@ -82,8 +74,6 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
 
   const deletePhoto = async (id: string) => {
     try {
-      console.log('🗑️ Deleting photo from Cloudinary:', id)
-      
       const response = await fetch('/api/delete', {
         method: 'DELETE',
         headers: {
@@ -91,19 +81,17 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
         },
         body: JSON.stringify({ photoId: id })
       })
-      
+
       const data = await response.json()
-      
+
       if (data.success) {
-        // Remove from local state
         setPhotos(prev => prev.filter(photo => photo.id !== id))
-        console.log('✅ Photo deleted successfully:', id)
       } else {
-        console.error('❌ Delete failed:', data.error)
+        console.error('Delete failed:', data.error)
         throw new Error(data.error || 'Delete failed')
       }
     } catch (error) {
-      console.error('❌ Error deleting photo:', error)
+      console.error('Error deleting photo:', error)
       throw error
     }
   }

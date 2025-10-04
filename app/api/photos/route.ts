@@ -3,12 +3,7 @@ import { getAllPhotos } from '@/lib/cloudinary-photos'
 
 export async function GET() {
   try {
-    console.log('📡 Photos API called at:', new Date().toISOString())
-
     const photos = await getAllPhotos()
-
-    console.log('📊 Returning photos:', photos.length)
-    console.log('📋 Photo details:', JSON.stringify(photos, null, 2))
 
     return NextResponse.json({
       success: true,
@@ -20,9 +15,9 @@ export async function GET() {
       }
     })
   } catch (error) {
-    console.error('❌ Photos API error:', error)
-    return NextResponse.json({ 
-      success: false, 
+    console.error('Photos API error:', error)
+    return NextResponse.json({
+      success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       photos: []
     }, { status: 500 })

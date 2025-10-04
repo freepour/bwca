@@ -28,32 +28,21 @@ export default function PhotoUpload() {
   // Function to extract photo date from file metadata
   const getPhotoDate = (file: File): Promise<string> => {
     return new Promise((resolve) => {
-      console.log('📸 File metadata:')
-      console.log('  - File name:', file.name)
-      console.log('  - File size:', file.size)
-      console.log('  - File type:', file.type)
-      console.log('  - Last modified:', new Date(file.lastModified).toISOString())
-      
       // Try EXIF first
       EXIF.getData(file as any, function(this: any) {
         const dateTime = EXIF.getTag(this, 'DateTime')
         const dateTimeOriginal = EXIF.getTag(this, 'DateTimeOriginal')
         const dateTimeDigitized = EXIF.getTag(this, 'DateTimeDigitized')
-        
-        console.log('📸 EXIF data:')
-        console.log('  - DateTime:', dateTime)
-        console.log('  - DateTimeOriginal:', dateTimeOriginal)
-        console.log('  - DateTimeDigitized:', dateTimeDigitized)
-        
+
         // Try different EXIF date fields in order of preference
         const exifDate = dateTimeOriginal || dateTimeDigitized || dateTime
-        
+
         if (exifDate) {
           // EXIF date format: "YYYY:MM:DD HH:MM:SS"
           const [datePart, timePart] = exifDate.split(' ')
           const [year, month, day] = datePart.split(':')
           const [hour, minute, second] = timePart.split(':')
-          
+
           const photoDate = new Date(
             parseInt(year),
             parseInt(month) - 1, // Month is 0-indexed
@@ -62,25 +51,19 @@ export default function PhotoUpload() {
             parseInt(minute),
             parseInt(second)
           )
-          
+
           const today = new Date()
           const isToday = photoDate.toDateString() === today.toDateString()
-          
-          console.log('📸 EXIF date found:', exifDate, '→', photoDate.toISOString())
-          console.log('📸 Is EXIF date today?', isToday)
-          
+
           if (isToday) {
             // EXIF date is today, probably not the real photo date, use lastModified
-            console.log('📸 EXIF date is today, using file lastModified instead')
             resolve(new Date(file.lastModified).toISOString())
           } else {
             // EXIF date is not today, use it
-            console.log('📸 Using EXIF date (not today)')
             resolve(photoDate.toISOString())
           }
         } else {
           // Fallback to file's lastModified date
-          console.log('📸 No EXIF date found, using file lastModified')
           resolve(new Date(file.lastModified).toISOString())
         }
       })
@@ -129,51 +112,39 @@ export default function PhotoUpload() {
     }, 200)
 
       try {
-        console.log('Starting upload for file:', file.name, 'Size:', file.size)
-        
         // Get the actual photo date from EXIF data first
         const photoDate = await getPhotoDate(file)
-        
-        console.log('📅 Photo metadata:')
-        console.log('  - EXIF date:', photoDate)
-        console.log('  - Date string:', new Date(photoDate).toDateString())
-        
+
         // Create FormData for upload
         const formData = new FormData()
         formData.append('file', file)
-        formData.append('photoDate', photoDate) // Pass the date to the API
-        formData.append('uploadedBy', user?.displayName || 'Unknown') // Pass the user info
-        
+        formData.append('photoDate', photoDate)
+        formData.append('uploadedBy', user?.displayName || 'Unknown')
+
         // Upload to our API endpoint with timeout
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
-        
-        console.log('Sending request to /api/upload...')
+        const timeoutId = setTimeout(() => controller.abort(), 30000)
+
         const response = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
           signal: controller.signal
         })
-      
+
       clearTimeout(timeoutId)
-      console.log('Response received, status:', response.status)
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
-      
+
       if (!response.ok) {
-        // Try to get the error message from the response
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`
         try {
           const errorData = await response.json()
-          console.error('Error response data:', errorData)
           errorMessage = errorData.error || errorMessage
         } catch (e) {
-          console.error('Could not parse error response as JSON')
+          // Could not parse error response
         }
         throw new Error(errorMessage)
       }
-      
+
       const result = await response.json()
-      console.log('Upload response:', result)
       
       if (result.success) {
         clearInterval(progressInterval)
@@ -185,8 +156,6 @@ export default function PhotoUpload() {
               : f
           )
         )
-        console.log('Upload successful:', result.imageUrl)
-        console.log('Public ID:', result.publicId)
 
         const newPhoto = {
           id: result.publicId,
@@ -196,31 +165,21 @@ export default function PhotoUpload() {
           uploadedAt: photoDate
         }
 
-        // Add photo to context
         addPhoto(newPhoto)
       } else {
-        console.error('Upload failed:', result.error)
         throw new Error(result.error || 'Upload failed')
       }
     } catch (error) {
       clearInterval(progressInterval)
       setIsUploading(false)
-      setUploadedFiles(prev => 
-        prev.map(file => 
-          file.id === fileId 
+      setUploadedFiles(prev =>
+        prev.map(file =>
+          file.id === fileId
             ? { ...file, status: 'error' }
             : file
         )
       )
       console.error('Upload error:', error)
-      
-      // Show user-friendly error message
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.error('Upload timed out after 30 seconds')
-      } else {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-        console.error('Upload failed:', errorMessage)
-      }
     }
   }
 
@@ -230,21 +189,13 @@ export default function PhotoUpload() {
     // If the file was successfully uploaded to Cloudinary, delete it
     if (file?.status === 'success' && file.cloudinaryPublicId) {
       try {
-        console.log('🗑️ Deleting from Cloudinary:', file.cloudinaryPublicId)
-        const response = await fetch('/api/delete', {
+        await fetch('/api/delete', {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ photoId: file.cloudinaryPublicId })
         })
-
-        const data = await response.json()
-        if (data.success) {
-          console.log('✅ Successfully deleted from Cloudinary')
-        } else {
-          console.error('❌ Failed to delete from Cloudinary:', data.error)
-        }
       } catch (error) {
         console.error('Failed to delete from Cloudinary:', error)
       }
@@ -264,7 +215,15 @@ export default function PhotoUpload() {
     accept: {
       'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp', '.heic', '.heif']
     },
-    multiple: true
+    multiple: true,
+    maxSize: 10 * 1024 * 1024, // 10MB limit
+    onDropRejected: (rejectedFiles) => {
+      rejectedFiles.forEach((rejectedFile) => {
+        if (rejectedFile.file.size > 10 * 1024 * 1024) {
+          alert(`File "${rejectedFile.file.name}" is too large. Maximum file size is 10MB.`)
+        }
+      })
+    }
   })
 
   if (!user) {

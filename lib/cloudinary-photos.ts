@@ -35,7 +35,6 @@ export async function getAllPhotos() {
 
     // Make API request to get all photos with context metadata
     const apiUrl = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?type=upload&max_results=500&context=true`
-    console.log('🌐 Fetching from URL:', apiUrl)
 
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -46,16 +45,10 @@ export async function getAllPhotos() {
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
       throw new Error(`Cloudinary API error: ${response.status} ${response.statusText}`)
     }
 
     const data = await response.json()
-
-    // Debug: log what we got back
-    console.log('Cloudinary returned resources:', data.resources?.length || 0)
-    console.log('Resource IDs:', data.resources?.map((r: any) => r.public_id))
-    console.log('Full API response:', JSON.stringify(data, null, 2))
 
     // Transform Cloudinary resources to our photo format
     const photos = data.resources.map((resource: any) => {

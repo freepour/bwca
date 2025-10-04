@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Download, Calendar, User, Camera, Trash2, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
@@ -17,8 +17,91 @@ interface Photo {
 export default function PhotoGallery() {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [filter, setFilter] = useState<string>('all')
+  const [isEditingDate, setIsEditingDate] = useState(false)
+  const [editedDateTime, setEditedDateTime] = useState('')
+  const [imageCache, setImageCache] = useState<Set<string>>(new Set())
   const { user } = useAuth()
   const { photos, isLoading, deletePhoto, refreshPhotos } = usePhotos()
+
+  // Filter photos before using in effects
+  const filteredPhotos = photos.filter(photo => {
+    if (filter === 'all') {
+      return true
+    }
+
+    const photoDate = new Date(photo.uploadedAt)
+    return photoDate.toDateString() === filter
+  })
+
+  // Preload full-resolution images when viewing a photo
+  useEffect(() => {
+    if (!selectedPhoto) return
+
+    // Add current photo to cache
+    if (!imageCache.has(selectedPhoto.url)) {
+      const img = new Image()
+      img.src = selectedPhoto.url
+      setImageCache(prev => new Set(prev).add(selectedPhoto.url))
+    }
+
+    // Preload adjacent photos for smoother navigation
+    const currentIndex = filteredPhotos.findIndex(p => p.id === selectedPhoto.id)
+    const adjacentPhotos = [
+      filteredPhotos[currentIndex - 1],
+      filteredPhotos[currentIndex + 1]
+    ].filter(Boolean)
+
+    adjacentPhotos.forEach(photo => {
+      if (!imageCache.has(photo.url)) {
+        const img = new Image()
+        img.src = photo.url
+        setImageCache(prev => new Set(prev).add(photo.url))
+      }
+    })
+  }, [selectedPhoto, filteredPhotos])
+
+  // Keyboard navigation for photo viewer
+  useEffect(() => {
+    if (!selectedPhoto) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Disable keyboard navigation while editing date
+      if (isEditingDate) {
+        if (e.key === 'Escape') {
+          handleCancelEdit()
+        }
+        return
+      }
+
+      if (e.key === 'Escape') {
+        setSelectedPhoto(null)
+      } else if (e.key === 'ArrowLeft') {
+        // Navigate to previous photo
+        const currentIndex = filteredPhotos.findIndex(p => p.id === selectedPhoto.id)
+        const prevIndex = currentIndex === 0 ? filteredPhotos.length - 1 : currentIndex - 1
+        setSelectedPhoto(filteredPhotos[prevIndex])
+      } else if (e.key === 'ArrowRight') {
+        // Navigate to next photo
+        const currentIndex = filteredPhotos.findIndex(p => p.id === selectedPhoto.id)
+        const nextIndex = currentIndex === filteredPhotos.length - 1 ? 0 : currentIndex + 1
+        setSelectedPhoto(filteredPhotos[nextIndex])
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedPhoto, filteredPhotos, isEditingDate])
+
+  // Helper to get Cloudinary thumbnail URL
+  const getThumbnailUrl = (url: string) => {
+    // Transform Cloudinary URL to use thumbnail optimization
+    // Example: https://res.cloudinary.com/xxx/image/upload/v123/photo.jpg
+    // Becomes: https://res.cloudinary.com/xxx/image/upload/w_400,h_400,c_fill,q_auto,f_auto/v123/photo.jpg
+    if (url.includes('res.cloudinary.com')) {
+      return url.replace('/upload/', '/upload/w_400,h_400,c_fill,q_auto,f_auto/')
+    }
+    return url
+  }
 
   const handleDownload = (photo: Photo) => {
     // In a real app, this would trigger a download
@@ -37,6 +120,68 @@ export default function PhotoGallery() {
     }
   }
 
+  const handleEditDate = (photo: Photo) => {
+    setIsEditingDate(true)
+    // Format datetime for input field (YYYY-MM-DDTHH:mm)
+    // We'll preserve seconds and milliseconds when saving
+    const date = new Date(photo.uploadedAt)
+    const formattedDateTime = date.toISOString().slice(0, 16)
+    setEditedDateTime(formattedDateTime)
+  }
+
+  const handleSaveDate = async () => {
+    if (!selectedPhoto || !editedDateTime) return
+
+    try {
+      // Parse the edited date (which only has minutes precision)
+      const editedDate = new Date(editedDateTime)
+
+      // Get original seconds and milliseconds from the current photo
+      const originalDate = new Date(selectedPhoto.uploadedAt)
+      const seconds = originalDate.getSeconds()
+      const milliseconds = originalDate.getMilliseconds()
+
+      // Set the preserved seconds and milliseconds on the new date
+      editedDate.setSeconds(seconds)
+      editedDate.setMilliseconds(milliseconds)
+
+      const response = await fetch('/api/update-photo', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          photoId: selectedPhoto.id,
+          newDateTime: editedDate.toISOString(),
+          uploadedBy: selectedPhoto.uploadedBy
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Refresh photos to get updated data
+        await refreshPhotos()
+        setIsEditingDate(false)
+        // Update selected photo with new date
+        setSelectedPhoto({
+          ...selectedPhoto,
+          uploadedAt: new Date(editedDateTime).toISOString()
+        })
+      } else {
+        alert('Failed to update photo date: ' + data.error)
+      }
+    } catch (error) {
+      console.error('Error updating photo date:', error)
+      alert('Failed to update photo date. Please try again.')
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setIsEditingDate(false)
+    setEditedDateTime('')
+  }
+
   // Create dynamic filter options based on actual photo dates
   const getFilterOptions = () => {
     const uniqueDates = Array.from(new Set(photos.map(photo => {
@@ -51,15 +196,26 @@ export default function PhotoGallery() {
       { id: 'all', label: 'All Photos', count: photos.length }
     ]
 
-    uniqueDates.forEach((dateString, index) => {
+    // Set September 1 of the current year as Day 1
+    const currentYear = new Date().getFullYear()
+    const sept1 = new Date(currentYear, 8, 1) // Month is 0-indexed, so 8 = September
+    sept1.setHours(0, 0, 0, 0)
+
+    uniqueDates.forEach((dateString) => {
       const date = new Date(dateString)
-      const dayNumber = index + 1
-      const formattedDate = date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric' 
+      date.setHours(0, 0, 0, 0)
+
+      // Calculate day number relative to September 1
+      const diffTime = date.getTime() - sept1.getTime()
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+      const dayNumber = diffDays + 1 // Sept 1 is Day 1, so add 1
+
+      const formattedDate = date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
       })
-      
-      const photosOnThisDate = photos.filter(photo => 
+
+      const photosOnThisDate = photos.filter(photo =>
         new Date(photo.uploadedAt).toDateString() === dateString
       ).length
 
@@ -72,15 +228,6 @@ export default function PhotoGallery() {
 
     return filterOptions
   }
-
-  const filteredPhotos = photos.filter(photo => {
-    if (filter === 'all') {
-      return true
-    }
-    
-    const photoDate = new Date(photo.uploadedAt)
-    return photoDate.toDateString() === filter
-  })
 
   // Group photos by date for display
   const groupedPhotos = filteredPhotos.reduce((groups, photo) => {
@@ -169,7 +316,7 @@ export default function PhotoGallery() {
               >
                 <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
                   <img
-                    src={photo.url}
+                    src={getThumbnailUrl(photo.url)}
                     alt={photo.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
@@ -285,17 +432,55 @@ export default function PhotoGallery() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-4 w-4" />
-                    <span>
-                      {new Date(selectedPhoto.uploadedAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })} {new Date(selectedPhoto.uploadedAt).toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false
-                      })}
-                    </span>
+                    {isEditingDate ? (
+                      <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="datetime-local"
+                          value={editedDateTime}
+                          onChange={(e) => setEditedDateTime(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSaveDate()
+                            }
+                          }}
+                          className="bg-black/50 text-white px-2 py-1 rounded border border-white/30 text-sm"
+                          autoFocus
+                        />
+                        <button
+                          onClick={handleSaveDate}
+                          className="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          className="px-2 py-1 bg-gray-600 hover:bg-gray-700 rounded text-xs"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (user && user.displayName === selectedPhoto.uploadedBy) {
+                            handleEditDate(selectedPhoto)
+                          }
+                        }}
+                        className={user && user.displayName === selectedPhoto.uploadedBy ? "cursor-pointer hover:text-blue-300" : ""}
+                        title={user && user.displayName === selectedPhoto.uploadedBy ? "Click to edit date/time" : ""}
+                      >
+                        {new Date(selectedPhoto.uploadedAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })} {new Date(selectedPhoto.uploadedAt).toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: false
+                        })}
+                      </span>
+                    )}
                   </div>
                 </div>
 
