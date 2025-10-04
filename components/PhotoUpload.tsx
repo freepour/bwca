@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, X, CheckCircle, AlertCircle, LogIn, RefreshCw } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -22,8 +22,33 @@ interface UploadedFile {
 export default function PhotoUpload() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [isUploading, setIsUploading] = useState(false)
+  const [uploadQueue, setUploadQueue] = useState<Array<{ id: string; file: File }>>([])
+  const [currentlyUploading, setCurrentlyUploading] = useState<Set<string>>(new Set())
   const { user } = useAuth()
   const { addPhoto } = usePhotos()
+
+  const MAX_CONCURRENT_UPLOADS = 2 // Process 2 uploads at a time
+
+  // Process upload queue
+  useEffect(() => {
+    if (uploadQueue.length === 0 || currentlyUploading.size >= MAX_CONCURRENT_UPLOADS) {
+      return
+    }
+
+    const availableSlots = MAX_CONCURRENT_UPLOADS - currentlyUploading.size
+    const itemsToProcess = uploadQueue.slice(0, availableSlots)
+
+    if (itemsToProcess.length > 0) {
+      // Remove items from queue
+      setUploadQueue(prev => prev.slice(availableSlots))
+
+      // Add to currently uploading set and start uploads
+      itemsToProcess.forEach(item => {
+        setCurrentlyUploading(prev => new Set(prev).add(item.id))
+        processUpload(item.id, item.file)
+      })
+    }
+  }, [uploadQueue, currentlyUploading])
 
   // Function to extract photo date from file metadata
   const getPhotoDate = (file: File): Promise<string> => {
@@ -87,23 +112,21 @@ export default function PhotoUpload() {
 
     setUploadedFiles(prev => [...prev, ...newFiles])
 
-    // Simulate upload progress
-    newFiles.forEach(fileObj => {
-      simulateUpload(fileObj.id, fileObj.file)
-    })
+    // Add files to upload queue
+    setUploadQueue(prev => [...prev, ...newFiles.map(f => ({ id: f.id, file: f.file }))])
   }, [])
 
-  const simulateUpload = async (fileId: string, file: File) => {
+  const processUpload = async (fileId: string, file: File) => {
     setIsUploading(true)
     let progress = 0
-    
+
     // Simulate progress
     const progressInterval = setInterval(() => {
       progress += Math.random() * 20
       if (progress < 90) {
-        setUploadedFiles(prev => 
-          prev.map(file => 
-            file.id === fileId 
+        setUploadedFiles(prev =>
+          prev.map(file =>
+            file.id === fileId
               ? { ...file, progress }
               : file
           )
@@ -111,25 +134,25 @@ export default function PhotoUpload() {
       }
     }, 200)
 
-      try {
-        // Get the actual photo date from EXIF data first
-        const photoDate = await getPhotoDate(file)
+    try {
+      // Get the actual photo date from EXIF data first
+      const photoDate = await getPhotoDate(file)
 
-        // Create FormData for upload
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('photoDate', photoDate)
-        formData.append('uploadedBy', user?.displayName || 'Unknown')
+      // Create FormData for upload
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('photoDate', photoDate)
+      formData.append('uploadedBy', user?.displayName || 'Unknown')
 
-        // Upload to our API endpoint with timeout
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 30000)
+      // Upload to our API endpoint with timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // Increased to 60s
 
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-          signal: controller.signal
-        })
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal
+      })
 
       clearTimeout(timeoutId)
 
@@ -145,10 +168,9 @@ export default function PhotoUpload() {
       }
 
       const result = await response.json()
-      
+
       if (result.success) {
         clearInterval(progressInterval)
-        setIsUploading(false)
         setUploadedFiles(prev =>
           prev.map(f =>
             f.id === fileId
@@ -171,7 +193,6 @@ export default function PhotoUpload() {
       }
     } catch (error) {
       clearInterval(progressInterval)
-      setIsUploading(false)
       setUploadedFiles(prev =>
         prev.map(file =>
           file.id === fileId
@@ -180,6 +201,19 @@ export default function PhotoUpload() {
         )
       )
       console.error('Upload error:', error)
+    } finally {
+      // Remove from currently uploading set
+      setCurrentlyUploading(prev => {
+        const next = new Set(prev)
+        next.delete(fileId)
+        return next
+      })
+
+      // Update isUploading flag
+      setIsUploading(prev => {
+        const stillUploading = currentlyUploading.size > 1 || uploadQueue.length > 0
+        return stillUploading
+      })
     }
   }
 
@@ -196,8 +230,8 @@ export default function PhotoUpload() {
       )
     )
 
-    // Retry the upload
-    await simulateUpload(fileId, file.file)
+    // Add to upload queue
+    setUploadQueue(prev => [...prev, { id: fileId, file: file.file }])
   }
 
   const removeFile = async (fileId: string) => {
