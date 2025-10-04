@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { uploadImage } from '@/lib/cloudinary'
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,7 +9,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    // Upload to Cloudinary
+    // Check if Cloudinary is configured
+    const hasCloudinaryConfig = process.env.CLOUDINARY_CLOUD_NAME && 
+                               process.env.CLOUDINARY_API_KEY && 
+                               process.env.CLOUDINARY_API_SECRET
+
+    if (!hasCloudinaryConfig) {
+      // Fallback: simulate upload for demo purposes
+      console.log('Cloudinary not configured, simulating upload...')
+      
+      // Create a data URL for the file
+      const arrayBuffer = await file.arrayBuffer()
+      const base64 = Buffer.from(arrayBuffer).toString('base64')
+      const mimeType = file.type || 'image/jpeg'
+      const dataUrl = `data:${mimeType};base64,${base64}`
+      
+      return NextResponse.json({ 
+        success: true, 
+        imageUrl: dataUrl,
+        filename: file.name,
+        size: file.size,
+        note: 'Demo mode - Cloudinary not configured'
+      })
+    }
+
+    // Real Cloudinary upload (when configured)
+    const { uploadImage } = await import('@/lib/cloudinary')
     const imageUrl = await uploadImage(file)
     
     return NextResponse.json({ 
@@ -21,6 +45,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Upload error:', error)
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
+    return NextResponse.json({ error: 'Upload failed: ' + error.message }, { status: 500 })
   }
 }

@@ -104,6 +104,7 @@ export default function PhotoUpload() {
       })
       
       const result = await response.json()
+      console.log('Upload response:', result)
       
       if (result.success) {
         clearInterval(progressInterval)
@@ -117,6 +118,7 @@ export default function PhotoUpload() {
         )
         console.log('Upload successful:', result.imageUrl)
       } else {
+        console.error('Upload failed:', result.error)
         throw new Error(result.error || 'Upload failed')
       }
     } catch (error) {
