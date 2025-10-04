@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "type-check": "tsc --noEmit",
+    "check": "npm run type-check && npm run lint",
+    "pre-commit": "npm run check",
+    "validate-build": "node scripts/validate-build.js",
+    "test": "npm run check && npm run build && npm run validate-build"
   },
   "dependencies": {
     "@next/font": "14.0.4",
@@ -33,6 +39,17 @@
   },
   "devDependencies": {
     "eslint": "^8",
-    "eslint-config-next": "14.0.4"
+    "eslint-config-next": "14.0.4",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.5.2"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "git add"
+    ],
+    "*.{ts,tsx}": [
+      "tsc --noEmit"
+    ]
   }
 }
