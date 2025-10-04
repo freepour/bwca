@@ -237,21 +237,7 @@ export default function PhotoUpload() {
   const removeFile = async (fileId: string) => {
     const file = uploadedFiles.find(f => f.id === fileId)
 
-    // If the file was successfully uploaded to Cloudinary, delete it
-    if (file?.status === 'success' && file.cloudinaryPublicId) {
-      try {
-        await fetch('/api/delete', {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ photoId: file.cloudinaryPublicId })
-        })
-      } catch (error) {
-        console.error('Failed to delete from Cloudinary:', error)
-      }
-    }
-
+    // Immediately remove from UI
     setUploadedFiles(prev => {
       const file = prev.find(f => f.id === fileId)
       if (file?.preview) {
@@ -259,6 +245,22 @@ export default function PhotoUpload() {
       }
       return prev.filter(f => f.id !== fileId)
     })
+
+    // Also remove from upload queue if it's waiting
+    setUploadQueue(prev => prev.filter(item => item.id !== fileId))
+
+    // If the file was successfully uploaded to Cloudinary, delete it in the background
+    if (file?.status === 'success' && file.cloudinaryPublicId) {
+      fetch('/api/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ photoId: file.cloudinaryPublicId })
+      }).catch(error => {
+        console.error('Failed to delete from Cloudinary:', error)
+      })
+    }
   }
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
