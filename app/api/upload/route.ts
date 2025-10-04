@@ -10,9 +10,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if Cloudinary is configured
-    const hasCloudinaryConfig = process.env.CLOUDINARY_CLOUD_NAME && 
-                               process.env.CLOUDINARY_API_KEY && 
-                               process.env.CLOUDINARY_API_SECRET
+    const hasCloudinaryConfig = process.env.CLOUDINARY_URL || 
+                               (process.env.CLOUDINARY_CLOUD_NAME && 
+                                process.env.CLOUDINARY_API_KEY && 
+                                process.env.CLOUDINARY_API_SECRET)
 
     if (!hasCloudinaryConfig) {
       // Fallback: simulate upload for demo purposes
