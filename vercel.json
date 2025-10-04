@@ -1,11 +1,5 @@
 {
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "functions": {
-    "api/upload/**": {
-      "maxDuration": 120,
-      "memory": 1024
-    }
-  }
+  "outputDirectory": ".next"
 }
