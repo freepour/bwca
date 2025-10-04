@@ -114,7 +114,11 @@ export default function PhotoGallery() {
   }
 
   const handleDeletePhoto = async (photoId: string) => {
-    if (window.confirm('Are you sure you want to delete this photo? This action cannot be undone.')) {
+    console.log('Delete button clicked for photo:', photoId)
+    const confirmed = window.confirm('Are you sure you want to delete this photo? This action cannot be undone.')
+    console.log('User confirmed:', confirmed)
+
+    if (confirmed) {
       try {
         // If we're in the viewer, navigate to the next photo before deleting
         if (selectedPhoto?.id === photoId) {
