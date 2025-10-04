@@ -12,7 +12,7 @@ export const USERS: User[] = [
   { id: '4', username: 'scooter', displayName: 'Scooter' }
 ]
 
-export const PASSWORD = 'bWCA!092025#'
+export const PASSWORD = process.env.BWCA_PASSWORD || 'bWCA!092025#'
 
 export function authenticateUser(username: string, password: string): User | null {
   if (password !== PASSWORD) {
