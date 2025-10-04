@@ -94,9 +94,19 @@ export default function PhotoUpload() {
       
       clearTimeout(timeoutId)
       console.log('Response received, status:', response.status)
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
       
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        // Try to get the error message from the response
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        try {
+          const errorData = await response.json()
+          console.error('Error response data:', errorData)
+          errorMessage = errorData.error || errorMessage
+        } catch (e) {
+          console.error('Could not parse error response as JSON')
+        }
+        throw new Error(errorMessage)
       }
       
       const result = await response.json()
