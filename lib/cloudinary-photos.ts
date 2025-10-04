@@ -54,8 +54,32 @@ export async function getAllPhotos() {
     // Filter out any invalid resources (e.g., deleted files that still appear in API)
     const photos = data.resources
       .filter((resource: any) => {
-        // Ensure resource has required fields
-        return resource.public_id && resource.secure_url && resource.resource_type === 'image'
+        // Skip if missing critical fields
+        if (!resource.public_id || !resource.secure_url) {
+          return false
+        }
+
+        // Skip if not an image
+        if (resource.resource_type !== 'image') {
+          return false
+        }
+
+        // Skip if the resource has a placeholder status (indicates deleted/invalid)
+        if (resource.placeholder === true) {
+          return false
+        }
+
+        // Skip if resource has error status
+        if (resource.error || resource.status === 'error') {
+          return false
+        }
+
+        // Skip if bytes is 0 or missing (indicates invalid file)
+        if (!resource.bytes || resource.bytes === 0) {
+          return false
+        }
+
+        return true
       })
       .map((resource: any) => {
         // Try to get photo date from context, fallback to created_at

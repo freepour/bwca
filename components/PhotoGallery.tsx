@@ -337,6 +337,14 @@ export default function PhotoGallery() {
                     src={getThumbnailUrl(photo.url)}
                     alt={photo.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      // Hide parent container if image fails to load
+                      const target = e.target as HTMLImageElement
+                      const container = target.closest('.relative.group') as HTMLElement
+                      if (container) {
+                        container.style.display = 'none'
+                      }
+                    }}
                   />
                 </div>
                 
