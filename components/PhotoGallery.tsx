@@ -23,15 +23,20 @@ export default function PhotoGallery() {
   const { user } = useAuth()
   const { photos, isLoading, deletePhoto, refreshPhotos } = usePhotos()
 
-  // Filter photos before using in effects
-  const filteredPhotos = photos.filter(photo => {
-    if (filter === 'all') {
-      return true
-    }
+  // Filter and sort photos before using in effects
+  const filteredPhotos = photos
+    .filter(photo => {
+      if (filter === 'all') {
+        return true
+      }
 
-    const photoDate = new Date(photo.uploadedAt)
-    return photoDate.toDateString() === filter
-  })
+      const photoDate = new Date(photo.uploadedAt)
+      return photoDate.toDateString() === filter
+    })
+    .sort((a, b) => {
+      // Sort chronologically (oldest to newest)
+      return new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime()
+    })
 
   // Preload full-resolution images when viewing a photo
   useEffect(() => {
@@ -233,7 +238,7 @@ export default function PhotoGallery() {
     return filterOptions
   }
 
-  // Group photos by date for display
+  // Group photos by date for display (already sorted chronologically)
   const groupedPhotos = filteredPhotos.reduce((groups, photo) => {
     const date = new Date(photo.uploadedAt)
     const dateKey = date.toLocaleDateString('en-US', {
@@ -248,6 +253,11 @@ export default function PhotoGallery() {
     groups[dateKey].push(photo)
     return groups
   }, {} as Record<string, Photo[]>)
+
+  // Sort the group keys chronologically
+  const sortedGroupKeys = Object.keys(groupedPhotos).sort((a, b) => {
+    return new Date(a).getTime() - new Date(b).getTime()
+  })
 
   // Show loading state
   if (isLoading) {
@@ -298,8 +308,12 @@ export default function PhotoGallery() {
       )}
 
       {/* Photo Grid */}
-      {Object.entries(groupedPhotos).map(([date, photos]) => (
+      {sortedGroupKeys.map((date) => (
         <div key={date} className="space-y-4">
+          {(() => {
+            const photos = groupedPhotos[date]
+            return (
+              <>
           {filter === 'all' && (
             <div className="flex items-center space-x-2">
               <Calendar className="h-5 w-5 text-gray-400" />
@@ -364,6 +378,9 @@ export default function PhotoGallery() {
               </motion.div>
             ))}
           </div>
+              </>
+            )
+          })()}
         </div>
       ))}
 
