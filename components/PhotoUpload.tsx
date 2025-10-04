@@ -52,11 +52,11 @@ export default function PhotoUpload() {
     
     // Simulate upload progress
     newFiles.forEach(fileObj => {
-      simulateUpload(fileObj.id)
+      simulateUpload(fileObj.id, fileObj.file)
     })
   }, [])
 
-  const simulateUpload = async (fileId: string) => {
+  const simulateUpload = async (fileId: string, file: File) => {
     setIsUploading(true)
     let progress = 0
     
@@ -75,16 +75,11 @@ export default function PhotoUpload() {
     }, 200)
 
     try {
+      console.log('Starting upload for file:', file.name, 'Size:', file.size)
+      
       // Create FormData for upload
       const formData = new FormData()
-      const fileObj = uploadedFiles.find(f => f.id === fileId)
-      if (!fileObj) {
-        console.error('File object not found for ID:', fileId)
-        return
-      }
-      
-      console.log('Starting upload for file:', fileObj.file.name, 'Size:', fileObj.file.size)
-      formData.append('file', fileObj.file)
+      formData.append('file', file)
       
       // Upload to our API endpoint with timeout
       const controller = new AbortController()
