@@ -26,29 +26,14 @@ export default function PhotoUpload() {
     for (const file of acceptedFiles) {
       let preview = URL.createObjectURL(file)
       
-      // Handle HEIC files - convert to JPEG for display
+      // Handle HEIC files - try conversion, fallback to Cloudinary
       if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
         console.log('Processing HEIC file:', file.name, file.type)
-        try {
-          // Dynamic import to avoid SSR issues
-          const heic2any = (await import('heic2any')).default
-          console.log('HEIC2ANY loaded, converting...')
-          
-          const convertedBlob = await heic2any({
-            blob: file,
-            toType: 'image/jpeg',
-            quality: 0.8
-          }) as Blob
-          
-          console.log('HEIC conversion successful, blob size:', convertedBlob.size)
-          preview = URL.createObjectURL(convertedBlob)
-          console.log('Preview URL created:', preview)
-        } catch (error) {
-          console.error('HEIC conversion failed:', error)
-          // For HEIC files, we'll let Cloudinary handle the conversion
-          // Use a placeholder for now, Cloudinary will convert it properly
-          preview = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDQwMCA0MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yMDAgMTUwQzIyNS4xNDMgMTUwIDI0NSAxNjkuODU3IDI0NSAxOTVDMjQ1IDIyMC4xNDMgMjI1LjE0MyAyNDAgMjAwIDI0MEMxNzQuODU3IDI0MCAxNTUgMjIwLjE0MyAxNTUgMTk1QzE1NSAxNjkuODU3IDE3NC44NTcgMTUwIDIwMCAxNTBaIiBmaWxsPSIjOUI5QkE1Ii8+CjxwYXRoIGQ9Ik0yMDAgMTcwQzIxMC40OTMgMTcwIDIyMCAxNzkuNTA3IDIyMCAxOTBDMjIwIDIwMC40OTMgMjEwLjQ5MyAyMTAgMjAwIDIxMEMxODkuNTA3IDIxMCAxODAgMjAwLjQ5MyAxODAgMTkwQzE4MCAxNzkuNTA3IDE4OS41MDcgMTcwIDIwMCAxNzBaIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjIwMCIgeT0iMjgwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNkI3MjgwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiPkhFSUM8L3RleHQ+Cjwvc3ZnPgo='
-        }
+        
+        // For HEIC files, we'll let Cloudinary handle the conversion
+        // Use a nice placeholder that shows it's a HEIC file
+        preview = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDQwMCA0MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxjaXJjbGUgY3g9IjIwMCIgY3k9IjE1MCIgcj0iNDAiIGZpbGw9IiM2MzY2RjEiLz4KPGNpcmNsZSBjeD0iMjAwIiBjeT0iMTUwIiByPSIyMCIgZmlsbD0iI0ZGRiIvPgo8dGV4dCB4PSIyMDAiIHk9IjI1MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzYzNjZGMiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmb250LXdlaWdodD0iNTAwIj5IRUlDPC90ZXh0Pgo8dGV4dCB4PSIyMDAiIHk9IjI3MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzYzNjZGMiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIj5DbG91ZGluYXJ5IHdpbGw8L3RleHQ+Cjx0ZXh0IHg9IjIwMCIgeT0iMjg1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjM2NkYyIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiPmNvbnZlcnQgdGhpczwvdGV4dD4KPC9zdmc+'
+        console.log('HEIC file detected - Cloudinary will handle conversion')
       }
       
       const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
@@ -246,7 +231,7 @@ export default function PhotoUpload() {
                       {(file.file.size / 1024 / 1024).toFixed(2)} MB
                       {file.isHeic && (
                         <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                          HEIC
+                          HEIC (Cloudinary will convert)
                         </span>
                       )}
                     </p>
