@@ -96,9 +96,12 @@ export async function getAllPhotos() {
         // Try to get uploader from context, default to 'Unknown'
         const uploadedBy = resource.context?.custom?.uploaded_by || 'Unknown'
 
+        // Add cache-busting parameter to URL
+        const urlWithCacheBust = `${resource.secure_url}?v=${resource.version}`
+
         return {
           id: resource.public_id,
-          url: resource.secure_url,
+          url: urlWithCacheBust,
           title: resource.original_filename || resource.public_id,
           uploadedBy,
           uploadedAt: photoDate
