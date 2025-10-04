@@ -31,3 +31,6 @@ process.env.CLOUDINARY_URL = 'cloudinary://123:secret@test'
 process.env.CLOUDINARY_CLOUD_NAME = 'test'
 process.env.CLOUDINARY_API_KEY = '123'
 process.env.CLOUDINARY_API_SECRET = 'secret'
+
+// Mock BWCA password for testing
+process.env.BWCA_PASSWORD = 'test-password-for-jest'

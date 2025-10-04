@@ -3,14 +3,14 @@ import { authenticateUser, getUserById, getUserByUsername, USERS } from '@/lib/a
 describe('Auth utilities', () => {
   describe('authenticateUser', () => {
     it('authenticates user with correct password and username', () => {
-      const user = authenticateUser('deadeye', process.env.BWCA_PASSWORD || 'bWCA!092025#')
+      const user = authenticateUser('deadeye', process.env.BWCA_PASSWORD!)
       expect(user).toBeTruthy()
       expect(user?.username).toBe('deadeye')
       expect(user?.displayName).toBe('Deadeye')
     })
 
     it('is case insensitive for username', () => {
-      const user = authenticateUser('DEADEYE', process.env.BWCA_PASSWORD || 'bWCA!092025#')
+      const user = authenticateUser('DEADEYE', process.env.BWCA_PASSWORD!)
       expect(user).toBeTruthy()
       expect(user?.username).toBe('deadeye')
     })
@@ -21,12 +21,12 @@ describe('Auth utilities', () => {
     })
 
     it('returns null for non-existent user', () => {
-      const user = authenticateUser('nonexistent', process.env.BWCA_PASSWORD || 'bWCA!092025#')
+      const user = authenticateUser('nonexistent', process.env.BWCA_PASSWORD!)
       expect(user).toBeNull()
     })
 
     it('authenticates all valid users', () => {
-      const password = process.env.BWCA_PASSWORD || 'bWCA!092025#'
+      const password = process.env.BWCA_PASSWORD!
       const usernames = ['deadeye', 'shackleton', 'whitey', 'scooter']
 
       usernames.forEach(username => {
