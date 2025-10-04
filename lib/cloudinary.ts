@@ -24,13 +24,11 @@ export async function uploadImage(file: File): Promise<string> {
     formData.append('file', file)
     formData.append('upload_preset', 'bwca_photos')
     
-    // Add format conversion for HEIC files
-    if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
-      formData.append('format', 'jpg') // Convert HEIC to JPG
-      formData.append('quality', 'auto') // Auto-optimize quality
-      formData.append('fetch_format', 'auto') // Auto-detect best format
-      console.log('📱 Uploading HEIC file, Cloudinary will convert to JPG with auto-optimization')
-    }
+        // Note: For unsigned uploads, we can't specify format parameters
+        // Cloudinary will automatically handle HEIC conversion based on the upload preset
+        if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+          console.log('📱 Uploading HEIC file, Cloudinary will handle conversion automatically')
+        }
     
     // Extract cloud name from CLOUDINARY_URL or use env var
     const cloudName = process.env.CLOUDINARY_URL 
