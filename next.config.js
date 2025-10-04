@@ -4,9 +4,9 @@ const nextConfig = {
     domains: ['res.cloudinary.com'],
     formats: ['image/webp', 'image/avif'],
   },
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
     },
   },
 }

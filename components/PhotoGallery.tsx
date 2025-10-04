@@ -112,6 +112,10 @@ export default function PhotoGallery() {
     if (window.confirm('Are you sure you want to delete this photo? This action cannot be undone.')) {
       try {
         await deletePhoto(photoId)
+        // Close the modal if the deleted photo is currently selected
+        if (selectedPhoto?.id === photoId) {
+          setSelectedPhoto(null)
+        }
         console.log('✅ Photo deleted successfully')
       } catch (error) {
         console.error('❌ Failed to delete photo:', error)

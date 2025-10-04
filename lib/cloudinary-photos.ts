@@ -51,21 +51,27 @@ export async function getAllPhotos() {
     const data = await response.json()
 
     // Transform Cloudinary resources to our photo format
-    const photos = data.resources.map((resource: any) => {
-      // Try to get photo date from context, fallback to created_at
-      const photoDate = resource.context?.custom?.photo_date || resource.created_at
+    // Filter out any invalid resources (e.g., deleted files that still appear in API)
+    const photos = data.resources
+      .filter((resource: any) => {
+        // Ensure resource has required fields
+        return resource.public_id && resource.secure_url && resource.resource_type === 'image'
+      })
+      .map((resource: any) => {
+        // Try to get photo date from context, fallback to created_at
+        const photoDate = resource.context?.custom?.photo_date || resource.created_at
 
-      // Try to get uploader from context, default to 'Unknown'
-      const uploadedBy = resource.context?.custom?.uploaded_by || 'Unknown'
+        // Try to get uploader from context, default to 'Unknown'
+        const uploadedBy = resource.context?.custom?.uploaded_by || 'Unknown'
 
-      return {
-        id: resource.public_id,
-        url: resource.secure_url,
-        title: resource.original_filename || resource.public_id,
-        uploadedBy,
-        uploadedAt: photoDate
-      }
-    })
+        return {
+          id: resource.public_id,
+          url: resource.secure_url,
+          title: resource.original_filename || resource.public_id,
+          uploadedBy,
+          uploadedAt: photoDate
+        }
+      })
 
     return photos
 
