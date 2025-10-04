@@ -24,6 +24,7 @@ const PhotoContext = createContext<PhotoContextType | undefined>(undefined)
 export function PhotoProvider({ children }: { children: ReactNode }) {
   const [photos, setPhotos] = useState<Photo[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [deletedPhotoIds, setDeletedPhotoIds] = useState<Set<string>>(new Set())
 
   // Load photos from Cloudinary
   const loadPhotos = async () => {
@@ -49,7 +50,9 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
           const recentLocalPhotos = prevPhotos.filter(p => !existingIds.has(p.id))
 
           // Combine: API photos (source of truth) + recent local photos
-          return [...newPhotos, ...recentLocalPhotos]
+          // BUT filter out any photos we know have been deleted
+          const allPhotos = [...newPhotos, ...recentLocalPhotos]
+          return allPhotos.filter(p => !deletedPhotoIds.has(p.id))
         })
       } else {
         console.error('Failed to load photos:', data.error)
@@ -116,6 +119,9 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
 
   const deletePhoto = async (id: string) => {
     try {
+      // Mark as deleted immediately to prevent it from reappearing
+      setDeletedPhotoIds(prev => new Set(prev).add(id))
+
       // Immediately remove from local state
       setPhotos(prev => prev.filter(photo => photo.id !== id))
 
@@ -132,12 +138,24 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
 
       if (!data.success) {
         console.error('Delete failed:', data.error)
+        // Remove from deleted list if delete failed
+        setDeletedPhotoIds(prev => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
         // Re-add the photo back if delete failed
         await loadPhotos()
         throw new Error(data.error || 'Delete failed')
       }
     } catch (error) {
       console.error('Error deleting photo:', error)
+      // Remove from deleted list if delete failed
+      setDeletedPhotoIds(prev => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
       // Reload photos to restore state if delete failed
       await loadPhotos()
       throw error
