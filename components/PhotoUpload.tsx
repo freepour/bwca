@@ -71,23 +71,14 @@ export default function PhotoUpload() {
     })
   }, [])
 
-  const simulateUpload = (fileId: string) => {
+  const simulateUpload = async (fileId: string) => {
     setIsUploading(true)
     let progress = 0
-    const interval = setInterval(() => {
-      progress += Math.random() * 30
-      if (progress >= 100) {
-        progress = 100
-        clearInterval(interval)
-        setIsUploading(false)
-        setUploadedFiles(prev => 
-          prev.map(file => 
-            file.id === fileId 
-              ? { ...file, status: 'success', progress: 100 }
-              : file
-          )
-        )
-      } else {
+    
+    // Simulate progress
+    const progressInterval = setInterval(() => {
+      progress += Math.random() * 20
+      if (progress < 90) {
         setUploadedFiles(prev => 
           prev.map(file => 
             file.id === fileId 
@@ -97,6 +88,49 @@ export default function PhotoUpload() {
         )
       }
     }, 200)
+
+    try {
+      // Create FormData for upload
+      const formData = new FormData()
+      const fileObj = uploadedFiles.find(f => f.id === fileId)
+      if (!fileObj) return
+      
+      formData.append('file', fileObj.file)
+      
+      // Upload to our API endpoint
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        clearInterval(progressInterval)
+        setIsUploading(false)
+        setUploadedFiles(prev => 
+          prev.map(file => 
+            file.id === fileId 
+              ? { ...file, status: 'success', progress: 100 }
+              : file
+          )
+        )
+        console.log('Upload successful:', result.imageUrl)
+      } else {
+        throw new Error(result.error || 'Upload failed')
+      }
+    } catch (error) {
+      clearInterval(progressInterval)
+      setIsUploading(false)
+      setUploadedFiles(prev => 
+        prev.map(file => 
+          file.id === fileId 
+            ? { ...file, status: 'error' }
+            : file
+        )
+      )
+      console.error('Upload error:', error)
+    }
   }
 
   const removeFile = (fileId: string) => {
