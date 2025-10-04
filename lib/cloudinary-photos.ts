@@ -34,7 +34,9 @@ export async function getAllPhotos() {
       .digest('hex')
 
     // Make API request to get all photos with context metadata
-    const apiUrl = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?type=upload&max_results=500&context=true`
+    // Filter by bwca/ prefix to only get photos in the bwca folder
+    // Note: Cloudinary free tier max is 500 per request, need pagination for more
+    const apiUrl = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?type=upload&prefix=bwca/&max_results=500&context=true`
 
     const response = await fetch(apiUrl, {
       method: 'GET',
