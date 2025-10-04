@@ -74,6 +74,10 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
 
   const deletePhoto = async (id: string) => {
     try {
+      // Immediately remove from local state
+      setPhotos(prev => prev.filter(photo => photo.id !== id))
+
+      // Delete from Cloudinary in the background
       const response = await fetch('/api/delete', {
         method: 'DELETE',
         headers: {
@@ -84,21 +88,16 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
 
       const data = await response.json()
 
-      if (data.success) {
-        // Optimistically update local state
-        setPhotos(prev => prev.filter(photo => photo.id !== id))
-
-        // Refresh from Cloudinary after a short delay to ensure sync
-        // Cloudinary API may take a moment to reflect the deletion
-        setTimeout(() => {
-          loadPhotos()
-        }, 1000)
-      } else {
+      if (!data.success) {
         console.error('Delete failed:', data.error)
+        // Re-add the photo back if delete failed
+        await loadPhotos()
         throw new Error(data.error || 'Delete failed')
       }
     } catch (error) {
       console.error('Error deleting photo:', error)
+      // Reload photos to restore state if delete failed
+      await loadPhotos()
       throw error
     }
   }
