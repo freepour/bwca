@@ -18,7 +18,7 @@ if (process.env.CLOUDINARY_URL) {
 
 export { cloudinary }
 
-export async function uploadImage(file: File): Promise<string> {
+export async function uploadImage(file: File, photoDate?: string): Promise<string> {
   return new Promise((resolve, reject) => {
     console.log('🔧 Setting up Cloudinary signed upload...')
     const formData = new FormData()
@@ -71,10 +71,15 @@ export async function uploadImage(file: File): Promise<string> {
     }
     
     // Add format parameters for HEIC files to the signature
+    // Note: Only include parameters that Cloudinary actually validates in the signature
     if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
       params.format = 'jpg'
-      params.quality = 'auto'
-      params.fetch_format = 'auto'
+      // Don't include quality and fetch_format in signature - they're not validated
+    }
+    
+    // Add photo date as context (not included in signature)
+    if (photoDate) {
+      console.log('📅 Adding photo date to Cloudinary:', photoDate)
     }
     
     // Create the string to sign (sorted parameters)
@@ -90,8 +95,11 @@ export async function uploadImage(file: File): Promise<string> {
       .digest('hex')
     
     console.log('🔏 Parameters:', params)
+    console.log('🔏 Sorted params:', sortedParams)
     console.log('🔏 String to sign:', stringToSign.replace(apiSecret, '[SECRET]'))
     console.log('🔏 Generated signature:', signature)
+    console.log('🔏 API Secret length:', apiSecret.length)
+    console.log('🔏 API Secret starts with:', apiSecret.substring(0, 4) + '...')
     
     // Add all parameters to form data
     formData.append('api_key', apiKey)
@@ -104,6 +112,19 @@ export async function uploadImage(file: File): Promise<string> {
       formData.append('quality', 'auto')
       formData.append('fetch_format', 'auto')
     }
+    
+    // Add photo date as context
+    if (photoDate) {
+      formData.append('context', `photo_date=${photoDate}`)
+    }
+    
+    // Debug: Log all form data parameters
+    console.log('📤 Form data parameters:')
+    Array.from(formData.entries()).forEach(([key, value]) => {
+      if (key !== 'file') {
+        console.log(`  ${key}: ${value}`)
+      }
+    })
     
     const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`
     console.log('🌐 Upload URL:', uploadUrl)

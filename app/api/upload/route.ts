@@ -3,16 +3,18 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function POST(request: NextRequest) {
   console.log('📤 Upload API called')
   
-  try {
-    const formData = await request.formData()
-    const file = formData.get('file') as File
-    
-    if (!file) {
-      console.error('❌ No file provided')
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
-    }
+      try {
+        const formData = await request.formData()
+        const file = formData.get('file') as File
+        const photoDate = formData.get('photoDate') as string
+        
+        if (!file) {
+          console.error('❌ No file provided')
+          return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+        }
 
-    console.log('📁 File received:', file.name, 'Size:', file.size, 'Type:', file.type)
+        console.log('📁 File received:', file.name, 'Size:', file.size, 'Type:', file.type)
+        console.log('📅 Photo date received:', photoDate)
 
         // Check if Cloudinary is configured
         const hasCloudinaryConfig = process.env.CLOUDINARY_URL || 
@@ -47,16 +49,16 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Real Cloudinary upload (when configured)
-    console.log('☁️ Starting Cloudinary upload...')
-    
-    try {
-      const { uploadImage } = await import('@/lib/cloudinary')
-      console.log('📦 Cloudinary module imported successfully')
-      
-      console.log('📤 Calling uploadImage function...')
-      const imageUrl = await uploadImage(file)
-      console.log('✅ Cloudinary upload successful:', imageUrl)
+        // Real Cloudinary upload (when configured)
+        console.log('☁️ Starting Cloudinary upload...')
+        
+        try {
+          const { uploadImage } = await import('@/lib/cloudinary')
+          console.log('📦 Cloudinary module imported successfully')
+          
+          console.log('📤 Calling uploadImage function...')
+          const imageUrl = await uploadImage(file, photoDate)
+          console.log('✅ Cloudinary upload successful:', imageUrl)
       
       return NextResponse.json({ 
         success: true, 
