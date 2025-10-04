@@ -68,7 +68,7 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadPhotos()
 
-    // Refresh when tab becomes visible
+    // Refresh when tab becomes visible (coming back from another tab/window)
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         loadPhotos()
@@ -77,16 +77,8 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
-    // Also refresh every 30 seconds if tab is visible
-    const interval = setInterval(() => {
-      if (!document.hidden) {
-        loadPhotos()
-      }
-    }, 30000)
-
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
-      clearInterval(interval)
     }
   }, [])
 

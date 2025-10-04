@@ -116,11 +116,20 @@ export default function PhotoGallery() {
   const handleDeletePhoto = async (photoId: string) => {
     if (window.confirm('Are you sure you want to delete this photo? This action cannot be undone.')) {
       try {
-        await deletePhoto(photoId)
-        // Close the modal if the deleted photo is currently selected
+        // If we're in the viewer, navigate to the next photo before deleting
         if (selectedPhoto?.id === photoId) {
-          setSelectedPhoto(null)
+          const currentIndex = filteredPhotos.findIndex(p => p.id === photoId)
+          if (currentIndex !== -1 && filteredPhotos.length > 1) {
+            // Navigate to next photo (or previous if this is the last one)
+            const nextIndex = currentIndex < filteredPhotos.length - 1 ? currentIndex + 1 : currentIndex - 1
+            setSelectedPhoto(filteredPhotos[nextIndex])
+          } else {
+            // No other photos, close the viewer
+            setSelectedPhoto(null)
+          }
         }
+
+        await deletePhoto(photoId)
         console.log('✅ Photo deleted successfully')
       } catch (error) {
         console.error('❌ Failed to delete photo:', error)
