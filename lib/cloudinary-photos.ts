@@ -1,4 +1,4 @@
-// Function to fetch all photos from Cloudinary
+// Function to fetch all photos from Cloudinary with pagination
 export async function getAllPhotos() {
   try {
     // Extract credentials from CLOUDINARY_URL or use env vars
@@ -26,35 +26,41 @@ export async function getAllPhotos() {
       throw new Error('Missing Cloudinary credentials')
     }
 
-    // Generate signature for API request
-    const timestamp = Math.round(new Date().getTime() / 1000)
-    const signature = require('crypto')
-      .createHash('sha1')
-      .update(`timestamp=${timestamp}${apiSecret}`)
-      .digest('hex')
+    const authHeader = `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString('base64')}`
+    let allResources: any[] = []
+    let nextCursor: string | undefined = undefined
 
-    // Make API request to get all photos with context metadata
-    // Filter by bwca/ prefix to only get photos in the bwca folder
-    // Note: Cloudinary free tier max is 500 per request, need pagination for more
-    const apiUrl = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?type=upload&prefix=bwca/&max_results=500&context=true`
+    // Paginate through all results
+    do {
+      const apiUrl = new URL(`https://api.cloudinary.com/v1_1/${cloudName}/resources/image`)
+      apiUrl.searchParams.set('type', 'upload')
+      apiUrl.searchParams.set('prefix', 'bwca/')
+      apiUrl.searchParams.set('max_results', '500')
+      apiUrl.searchParams.set('context', 'true')
+      if (nextCursor) {
+        apiUrl.searchParams.set('next_cursor', nextCursor)
+      }
 
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString('base64')}`
-      },
-      cache: 'no-store'
-    })
+      const response = await fetch(apiUrl.toString(), {
+        method: 'GET',
+        headers: {
+          'Authorization': authHeader
+        },
+        cache: 'no-store'
+      })
 
-    if (!response.ok) {
-      throw new Error(`Cloudinary API error: ${response.status} ${response.statusText}`)
-    }
+      if (!response.ok) {
+        throw new Error(`Cloudinary API error: ${response.status} ${response.statusText}`)
+      }
 
-    const data = await response.json()
+      const data = await response.json()
+      allResources = allResources.concat(data.resources || [])
+      nextCursor = data.next_cursor
+    } while (nextCursor)
 
     // Transform Cloudinary resources to our photo format
     // Filter out any invalid resources (e.g., deleted files that still appear in API)
-    const photos = data.resources
+    const photos = allResources
       .filter((resource: any) => {
         // Skip if missing critical fields
         if (!resource.public_id || !resource.secure_url) {

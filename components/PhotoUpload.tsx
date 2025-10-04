@@ -267,11 +267,12 @@ export default function PhotoUpload() {
       'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp', '.heic', '.heif']
     },
     multiple: true,
-    maxSize: 10 * 1024 * 1024, // 10MB limit
+    maxSize: 10 * 1024 * 1024, // 10MB limit (Cloudinary free tier max)
     onDropRejected: (rejectedFiles) => {
       rejectedFiles.forEach((rejectedFile) => {
         if (rejectedFile.file.size > 10 * 1024 * 1024) {
-          alert(`File "${rejectedFile.file.name}" is too large. Maximum file size is 10MB.`)
+          const sizeMB = (rejectedFile.file.size / 1024 / 1024).toFixed(2)
+          alert(`File "${rejectedFile.file.name}" is too large (${sizeMB}MB). Maximum file size is 10MB. Please compress the image before uploading.`)
         }
       })
     }
