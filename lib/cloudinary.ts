@@ -67,12 +67,33 @@ export async function uploadImage(file: File): Promise<string> {
     
     // Generate signature for signed upload
     const timestamp = Math.round(new Date().getTime() / 1000)
+    
+    // Build the string to sign with all parameters
+    const params: Record<string, string> = {
+      timestamp: timestamp.toString()
+    }
+    
+    // Add format parameters for HEIC files to the signature
+    if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+      params.format = 'jpg'
+      params.quality = 'auto'
+      params.fetch_format = 'auto'
+    }
+    
+    // Create the string to sign (sorted parameters)
+    const sortedParams = Object.keys(params)
+      .sort()
+      .map(key => `${key}=${params[key]}`)
+      .join('&')
+    
+    const stringToSign = sortedParams + apiSecret
     const signature = crypto
       .createHash('sha1')
-      .update(`timestamp=${timestamp}${apiSecret}`)
+      .update(stringToSign)
       .digest('hex')
     
-    console.log('🔏 Generated signature for timestamp:', timestamp)
+    console.log('🔏 String to sign:', stringToSign.replace(apiSecret, '[SECRET]'))
+    console.log('🔏 Generated signature:', signature)
     
     // Add signature parameters
     formData.append('api_key', apiKey)
