@@ -248,18 +248,9 @@ export default function PhotoUpload() {
       <div className="text-center py-12">
         <LogIn className="h-16 w-16 text-gray-400 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">Login Required</h3>
-        <p className="text-gray-600 mb-6">
+        <p className="text-gray-600">
           You need to be logged in to upload photos. Please login with your credentials.
         </p>
-        <div className="bg-gray-50 rounded-lg p-4 max-w-md mx-auto">
-          <h4 className="text-sm font-medium text-gray-900 mb-2">Authorized Users:</h4>
-          <div className="text-sm text-gray-600 space-y-1">
-            <div>• deadeye</div>
-            <div>• shackleton</div>
-            <div>• whitey</div>
-            <div>• scooter</div>
-          </div>
-        </div>
       </div>
     )
   }

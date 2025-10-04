@@ -126,16 +126,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 </button>
               </div>
             </form>
-
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="text-sm font-medium text-gray-900 mb-2">Authorized Users:</h3>
-              <div className="text-sm text-gray-600 space-y-1">
-                <div>• deadeye</div>
-                <div>• shackleton</div>
-                <div>• whitey</div>
-                <div>• scooter</div>
-              </div>
-            </div>
           </motion.div>
         </motion.div>
       )}

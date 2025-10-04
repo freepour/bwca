@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { User, authenticateUser } from '@/lib/auth'
+import { User } from '@/lib/auth'
 
 interface AuthContextType {
   user: User | null
@@ -30,13 +30,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    const authenticatedUser = authenticateUser(username, password)
-    if (authenticatedUser) {
-      setUser(authenticatedUser)
-      localStorage.setItem('bwca_user', JSON.stringify(authenticatedUser))
-      return true
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      })
+
+      const data = await response.json()
+
+      if (data.success && data.user) {
+        setUser(data.user)
+        localStorage.setItem('bwca_user', JSON.stringify(data.user))
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Login error:', error)
+      return false
     }
-    return false
   }
 
   const logout = () => {
