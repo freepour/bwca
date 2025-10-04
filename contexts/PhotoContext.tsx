@@ -53,6 +53,27 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
   // Load photos from Cloudinary on mount
   useEffect(() => {
     loadPhotos()
+
+    // Refresh when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadPhotos()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    // Also refresh every 30 seconds if tab is visible
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        loadPhotos()
+      }
+    }, 30000)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      clearInterval(interval)
+    }
   }, [])
 
   // Refresh photos function
@@ -61,7 +82,13 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
   }
 
   const addPhoto = (photo: Photo) => {
+    // Add photo optimistically
     setPhotos(prev => [photo, ...prev])
+
+    // Refresh from Cloudinary after a short delay to get the actual state
+    setTimeout(() => {
+      loadPhotos()
+    }, 1000)
   }
 
   const updatePhoto = (id: string, updates: Partial<Photo>) => {
