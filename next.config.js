@@ -9,9 +9,13 @@ const nextConfig = {
       bodySizeLimit: '10mb',
     },
   },
-  // Note: Next.js 14 doesn't have direct API route body size config in app directory
-  // The limit is handled by the deployment platform (Vercel has 4.5MB default, can be increased)
-  // For local dev, Node.js doesn't have a hard limit on formData
+  env: {
+    // Expose Cloudinary cloud name and API key to client for direct uploads
+    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME ||
+      (process.env.CLOUDINARY_URL ? process.env.CLOUDINARY_URL.match(/cloudinary:\/\/\d+:[^@]+@(.+)/)?.[1] : ''),
+    NEXT_PUBLIC_CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY ||
+      (process.env.CLOUDINARY_URL ? process.env.CLOUDINARY_URL.match(/cloudinary:\/\/(\d+):/)?.[1] : ''),
+  },
 }
 
 module.exports = nextConfig

@@ -139,17 +139,46 @@ export default function PhotoUpload() {
       // Get the actual photo date from EXIF data first
       const photoDate = await getPhotoDate(file)
 
-      // Create FormData for upload
+      // Get Cloudinary credentials from env (client-safe ones only)
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+      const apiKey = process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY
+
+      if (!cloudName || !apiKey) {
+        throw new Error('Cloudinary configuration missing')
+      }
+
+      // Get upload signature from our API
+      const timestamp = Math.round(new Date().getTime() / 1000)
+      const contextParts = []
+      if (photoDate) contextParts.push(`photo_date=${photoDate}`)
+      if (user?.displayName) contextParts.push(`uploaded_by=${user.displayName}`)
+      const context = contextParts.join('|')
+
+      const sigResponse = await fetch('/api/upload-signature', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timestamp, folder: 'bwca', context })
+      })
+
+      if (!sigResponse.ok) {
+        throw new Error('Failed to get upload signature')
+      }
+
+      const { signature } = await sigResponse.json()
+
+      // Upload directly to Cloudinary (bypasses Vercel limits)
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('photoDate', photoDate)
-      formData.append('uploadedBy', user?.displayName || 'Unknown')
+      formData.append('api_key', apiKey)
+      formData.append('timestamp', timestamp.toString())
+      formData.append('signature', signature)
+      formData.append('folder', 'bwca')
+      formData.append('context', context)
 
-      // Upload to our API endpoint with timeout
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 120000) // Increased to 120s (2 minutes)
+      const timeoutId = setTimeout(() => controller.abort(), 120000)
 
-      const response = await fetch('/api/upload', {
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: 'POST',
         body: formData,
         signal: controller.signal
@@ -158,32 +187,26 @@ export default function PhotoUpload() {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.error || errorMessage
-        } catch (e) {
-          // Could not parse error response
-        }
-        console.error(`Upload failed for ${file.name}:`, errorMessage)
-        throw new Error(errorMessage)
+        const errorText = await response.text()
+        console.error(`Cloudinary upload failed for ${file.name}:`, errorText)
+        throw new Error(`Upload failed: ${response.statusText}`)
       }
 
       const result = await response.json()
 
-      if (result.success) {
+      if (result.secure_url && result.public_id) {
         clearInterval(progressInterval)
         setUploadedFiles(prev =>
           prev.map(f =>
             f.id === fileId
-              ? { ...f, status: 'success', progress: 100, cloudinaryUrl: result.imageUrl, cloudinaryPublicId: result.publicId }
+              ? { ...f, status: 'success', progress: 100, cloudinaryUrl: result.secure_url, cloudinaryPublicId: result.public_id }
               : f
           )
         )
 
         const newPhoto = {
-          id: result.publicId,
-          url: result.imageUrl,
+          id: result.public_id,
+          url: result.secure_url,
           title: file.name,
           uploadedBy: user?.displayName || 'Unknown',
           uploadedAt: photoDate
@@ -191,7 +214,7 @@ export default function PhotoUpload() {
 
         addPhoto(newPhoto)
       } else {
-        throw new Error(result.error || 'Upload failed')
+        throw new Error(result.error?.message || 'Upload failed')
       }
     } catch (error) {
       clearInterval(progressInterval)
