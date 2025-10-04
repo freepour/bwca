@@ -154,10 +154,20 @@ export default function PhotoUpload() {
       if (user?.displayName) contextParts.push(`uploaded_by=${user.displayName}`)
       const context = contextParts.join('|')
 
+      // Check if we need to convert HEIC to JPG
+      const isHeic = file.type === 'image/heic' || file.type === 'image/heif' ||
+                     file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
+
+      const signatureParams: any = { timestamp, folder: 'bwca', context }
+      if (isHeic) {
+        signatureParams.format = 'jpg'
+        signatureParams.quality = 'auto'
+      }
+
       const sigResponse = await fetch('/api/upload-signature', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timestamp, folder: 'bwca', context })
+        body: JSON.stringify(signatureParams)
       })
 
       if (!sigResponse.ok) {
@@ -174,6 +184,13 @@ export default function PhotoUpload() {
       formData.append('signature', signature)
       formData.append('folder', 'bwca')
       formData.append('context', context)
+
+      // Convert HEIC to browser-compatible format
+      if (file.type === 'image/heic' || file.type === 'image/heif' ||
+          file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+        formData.append('format', 'jpg')
+        formData.append('quality', 'auto')
+      }
 
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 120000)

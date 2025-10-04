@@ -4,7 +4,7 @@ import crypto from 'crypto'
 // Generate a signature for client-side Cloudinary uploads
 export async function POST(request: NextRequest) {
   try {
-    const { timestamp, folder, context } = await request.json()
+    const { timestamp, folder, context, format, quality } = await request.json()
 
     // Extract credentials
     let apiSecret: string
@@ -33,6 +33,14 @@ export async function POST(request: NextRequest) {
 
     if (context) {
       params.context = context
+    }
+
+    // Add format conversion params if provided (for HEIC files)
+    if (format) {
+      params.format = format
+    }
+    if (quality) {
+      params.quality = quality
     }
 
     // Create the string to sign (sorted parameters)
