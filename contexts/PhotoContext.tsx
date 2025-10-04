@@ -24,7 +24,20 @@ const PhotoContext = createContext<PhotoContextType | undefined>(undefined)
 export function PhotoProvider({ children }: { children: ReactNode }) {
   const [photos, setPhotos] = useState<Photo[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [deletedPhotoIds, setDeletedPhotoIds] = useState<Set<string>>(new Set())
+  const [deletedPhotoIds, setDeletedPhotoIds] = useState<Set<string>>(() => {
+    // Load deleted photo IDs from localStorage on mount
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('deletedPhotoIds')
+      if (stored) {
+        try {
+          return new Set(JSON.parse(stored))
+        } catch (e) {
+          console.error('Failed to parse deleted photo IDs:', e)
+        }
+      }
+    }
+    return new Set()
+  })
 
   // Load photos from Cloudinary
   const loadPhotos = async () => {
@@ -63,6 +76,13 @@ export function PhotoProvider({ children }: { children: ReactNode }) {
       setIsLoading(false)
     }
   }
+
+  // Persist deleted photo IDs to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('deletedPhotoIds', JSON.stringify(Array.from(deletedPhotoIds)))
+    }
+  }, [deletedPhotoIds])
 
   // Load photos from Cloudinary on mount
   useEffect(() => {
