@@ -223,8 +223,7 @@ export default function PhotoGallery() {
 
       const formattedDate = date.toLocaleDateString('en-US', {
         month: 'short',
-        day: 'numeric',
-        year: 'numeric'
+        day: 'numeric'
       })
 
       const photosOnThisDate = photos.filter(photo =>
