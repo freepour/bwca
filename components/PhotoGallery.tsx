@@ -218,23 +218,13 @@ export default function PhotoGallery() {
       { id: 'all', label: 'All Photos', count: photos.length }
     ]
 
-    // Set September 1 of the current year as Day 1
-    const currentYear = new Date().getFullYear()
-    const sept1 = new Date(currentYear, 8, 1) // Month is 0-indexed, so 8 = September
-    sept1.setHours(0, 0, 0, 0)
-
     uniqueDates.forEach((dateString) => {
       const date = new Date(dateString)
-      date.setHours(0, 0, 0, 0)
-
-      // Calculate day number relative to September 1
-      const diffTime = date.getTime() - sept1.getTime()
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-      const dayNumber = diffDays + 1 // Sept 1 is Day 1, so add 1
 
       const formattedDate = date.toLocaleDateString('en-US', {
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
+        year: 'numeric'
       })
 
       const photosOnThisDate = photos.filter(photo =>
@@ -243,7 +233,7 @@ export default function PhotoGallery() {
 
       filterOptions.push({
         id: dateString,
-        label: `Day ${dayNumber} - ${formattedDate} (${photosOnThisDate})`,
+        label: `${formattedDate} (${photosOnThisDate})`,
         count: photosOnThisDate
       })
     })
