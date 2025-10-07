@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getAllPhotos } from '@/lib/cloudinary-photos'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET() {
   try {
     const photos = await getAllPhotos()
